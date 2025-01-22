@@ -26,9 +26,6 @@ const jobOptionConfigMixin = {
                     default: false
                 },
                 mutexGroupName: {
-                    rule: {
-                        mutualGroup: true
-                    },
                     component: 'vuex-input',
                     label: this.$t('storeMap.mutualGroupName'),
                     placeholder: this.$t('storeMap.mutualGroupNamePlaceholder'),
@@ -42,10 +39,11 @@ const jobOptionConfigMixin = {
                     text: this.$t('storeMap.queueEnable'),
                     default: false
                 },
-                timeout: {
-                    rule: { 'numeric': true, 'max_value': 10080, 'min_value': 1 },
+                timeoutVar: {
+                    rule: { timeoutsRule: true },
                     component: 'vuex-input',
                     label: this.$t('storeMap.mutualTimeout'),
+                    desc: this.$t('storeMap.timeoutDesc'),
                     placeholder: this.$t('storeMap.mutualTimeoutPlaceholder'),
                     default: '900',
                     required: true,
@@ -54,7 +52,7 @@ const jobOptionConfigMixin = {
                     }
                 },
                 queue: {
-                    rule: { 'numeric': true, 'max_value': 10, 'min_value': 1 },
+                    rule: { numeric: true, max_value: 50, min_value: 1 },
                     component: 'vuex-input',
                     label: this.$t('storeMap.queueLabel'),
                     placeholder: this.$t('storeMap.queuePlaceholder'),
@@ -63,6 +61,52 @@ const jobOptionConfigMixin = {
                     isHidden: (mutexGroup) => {
                         return !(mutexGroup && mutexGroup.queueEnable)
                     }
+                }
+            },
+            JOB_MATRIX: {
+                strategyStr: {
+                    required: true,
+                    rule: {},
+                    component: 'atom-ace-editor',
+                    lang: 'yaml',
+                    defaultHeight: 100,
+                    label: this.$t('storeMap.strategy'),
+                    desc: this.$t('storeMap.strategyDesc'),
+                    default: ''
+                },
+                includeCaseStr: {
+                    rule: {},
+                    component: 'atom-ace-editor',
+                    lang: 'yaml',
+                    defaultHeight: 100,
+                    label: this.$t('storeMap.includeCase'),
+                    desc: this.$t('storeMap.includeCaseDesc'),
+                    default: ''
+                },
+                excludeCaseStr: {
+                    rule: {},
+                    component: 'atom-ace-editor',
+                    lang: 'yaml',
+                    defaultHeight: 100,
+                    label: this.$t('storeMap.excludeCase'),
+                    desc: this.$t('storeMap.excludeCaseDesc'),
+                    default: ''
+                },
+                fastKill: {
+                    rule: {},
+                    type: 'boolean',
+                    component: 'atom-checkbox',
+                    text: this.$t('storeMap.fastKill'),
+                    // desc: this.$t('storeMap.fastKillDesc'),
+                    default: true
+                },
+                maxConcurrency: {
+                    rule: { numeric: true, min_value: 1, max_value: 20 },
+                    component: 'vuex-input',
+                    required: true,
+                    label: this.$t('storeMap.maxConcurrency'),
+                    placeholder: this.$t('storeMap.maxConcurrencyDesc'),
+                    default: '5'
                 }
             },
             normalRunConditionList: [
@@ -77,6 +121,10 @@ const jobOptionConfigMixin = {
                 {
                     id: 'CUSTOM_VARIABLE_MATCH_NOT_RUN',
                     name: this.$t('storeMap.varNotMatch')
+                },
+                {
+                    id: 'CUSTOM_CONDITION_MATCH',
+                    name: this.$t('storeMap.customCondition')
                 }
             ],
             finallyRunConditionList: [
@@ -109,6 +157,15 @@ const jobOptionConfigMixin = {
                     text: this.$t('storeMap.enableJob'),
                     default: true
                 },
+                // enableCustomEnv: {
+                //     rule: {},
+                //     type: 'boolean',
+                //     component: 'atom-checkbox',
+                //     text: this.$t('storeMap.customEnv'),
+                //     default: false,
+                //     clearValue: false,
+                //     clearFields: ['customEnv']
+                // },
                 dependOnType: {
                     component: 'enum-input',
                     label: this.$t('storeMap.dependOn'),
@@ -130,7 +187,8 @@ const jobOptionConfigMixin = {
                     default: [],
                     multiSelect: true,
                     list: this.dependOnList,
-                    isHidden: (jobOption) => {
+                    isHidden: (container) => {
+                        const jobOption = container.jobControlOption || {}
                         return !(jobOption && (jobOption.dependOnType === 'ID' || !jobOption.dependOnType))
                     }
                 },
@@ -139,18 +197,87 @@ const jobOptionConfigMixin = {
                     component: 'vuex-input',
                     default: '',
                     placeholder: this.$t('storeMap.dependOnNamePlaceholder'),
-                    isHidden: (jobOption) => {
+                    isHidden: (container) => {
+                        const jobOption = container.jobControlOption || {}
                         return !(jobOption && jobOption.dependOnType === 'NAME')
                     }
                 },
-                timeout: {
-                    rule: { 'numeric': true, 'max_value': 10080 },
+                maxConcurrency: {
+                    type: 'group',
+                    label: this.$t('storeMap.maxConcurrency'),
+                    isHidden: (container) => {
+                        const dispatchType = container.dispatchType || {}
+                        return dispatchType.buildType !== 'THIRD_PARTY_AGENT_ENV'
+                    },
+                    children: [
+                        {
+                            key: 'singleNodeConcurrency',
+                            rule: { maxConcurrencyRule: true },
+                            type: 'groupItem',
+                            component: 'vuex-input',
+                            labelWidth: 150,
+                            label: this.$t('storeMap.singleNodeConcurrency'),
+                            placeholder: this.$t('storeMap.singleNodeConcurrencyPlaceholder')
+                        },
+                        {
+                            key: 'allNodeConcurrency',
+                            rule: { maxConcurrencyRule: true },
+                            type: 'groupItem',
+                            component: 'vuex-input',
+                            labelWidth: 150,
+                            label: this.$t('storeMap.allNodeConcurrency'),
+                            placeholder: this.$t('storeMap.allNodeConcurrencyPlaceholder')
+                        }
+                    ]
+                },
+                timeoutPeriod: {
+                    type: 'group',
+                    label: this.$t('storeMap.timeoutPeriod'),
+                    isHidden: (container) => {
+                        const dispatchType = container.dispatchType || {}
+                        return dispatchType.buildType !== 'THIRD_PARTY_AGENT_ENV'
+                    },
+                    children: [
+                        {
+                            key: 'prepareTimeout',
+                            type: 'groupItem',
+                            rule: { timeoutsRule: true },
+                            component: 'composite-input',
+                            appendText: this.$t('storeMap.minutes'),
+                            labelWidth: 90,
+                            width: 150,
+                            required: true,
+                            label: this.$t('storeMap.queueTimeOut'),
+                            iconDesc: this.$t('storeMap.prepareTimeoutDesc'),
+                            default: '10'
+                        },
+                        {
+                            key: 'timeoutVar',
+                            type: 'groupItem',
+                            rule: { timeoutsRule: true },
+                            component: 'composite-input',
+                            appendText: this.$t('storeMap.minutes'),
+                            labelWidth: 90,
+                            width: 150,
+                            required: true,
+                            label: this.$t('storeMap.execTimeOut'),
+                            iconDesc: this.$t('storeMap.timeoutDesc'),
+                            default: '900'
+                        }
+                    ]
+                },
+                timeoutVar: {
+                    rule: { timeoutsRule: true },
                     component: 'vuex-input',
                     required: true,
                     label: this.$t('storeMap.jobTimeout'),
                     desc: this.$t('storeMap.timeoutDesc'),
                     placeholder: this.$t('storeMap.timeoutPlaceholder'),
-                    default: '900'
+                    default: '900',
+                    isHidden: (container) => {
+                        const dispatchType = container.dispatchType || {}
+                        return dispatchType.buildType === 'THIRD_PARTY_AGENT_ENV'
+                    }
                 },
                 runCondition: {
                     rule: {},
@@ -165,20 +292,27 @@ const jobOptionConfigMixin = {
                     default: [{ key: 'param1', value: '' }],
                     label: this.$t('storeMap.customVar'),
                     allowNull: false,
-                    isHidden: (jobOption) => {
+                    isHidden: (container) => {
+                        const jobOption = container.jobControlOption || {}
                         return !(jobOption && (jobOption.runCondition === 'CUSTOM_VARIABLE_MATCH' || jobOption.runCondition === 'CUSTOM_VARIABLE_MATCH_NOT_RUN'))
                     }
                 },
                 customCondition: {
-                    isHidden: true,
-                    default: ''
+                    component: 'vuex-input',
+                    default: '',
+                    required: true,
+                    label: this.$t('storeMap.customConditionExp'),
+                    isHidden: (container) => {
+                        return container?.jobControlOption?.runCondition !== 'CUSTOM_CONDITION_MATCH'
+                    },
+                    placeholder: this.$t('storeMap.customConditionExpPlaceholder')
                 }
             }
         },
         dependOnList () {
             const list = []
             // if (!this.stage.containers || this.stage.containers.length <= 1) return list
-            this.stage.containers && this.stage.containers.map((container, index) => {
+            this.stage.containers && this.stage.containers.forEach((container, index) => {
                 if (index !== this.containerIndex) {
                     list.push(
                         {
@@ -193,15 +327,21 @@ const jobOptionConfigMixin = {
         }
     },
     methods: {
-        getJobOptionDefault (OPTION = this.JOB_OPTION) {
-            return Object.keys(OPTION).reduce((formProps, key) => {
-                if (OPTION[key] && typeof OPTION[key].default === 'object') {
-                    formProps[key] = JSON.parse(JSON.stringify(OPTION[key].default))
-                } else {
-                    formProps[key] = OPTION[key].default
+        getJobOptionDefault (model, values) {
+            return Object.keys(model).reduce((formProps, key) => {
+                if (!Object.prototype.hasOwnProperty.apply(values, [key])) {
+                    formProps[key] = this.getFieldDefault(key, model)
                 }
                 return formProps
-            }, {})
+            }, {
+                ...values
+            })
+        },
+        getFieldDefault (key, model) {
+            if (typeof model[key]?.default === 'object') {
+                return JSON.parse(JSON.stringify(model[key].default))
+            }
+            return model[key].default
         }
     }
 }

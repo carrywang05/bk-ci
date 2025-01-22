@@ -29,20 +29,26 @@ package com.tencent.devops.dispatch.utils
 
 import com.tencent.devops.common.redis.RedisLock
 import com.tencent.devops.common.redis.RedisOperation
+import kotlin.math.min
 
-@Suppress("ALL")
+@Suppress("UNUSED")
 class ThirdPartyAgentEnvLock(
     redisOperation: RedisOperation,
     projectId: String,
     envId: String
+) : RedisLock(
+    redisOperation = redisOperation,
+    lockKey = "DISPATCH_REDIS_LOCK_ENV_${projectId}_$envId",
+    expiredTimeInSeconds = 60L
 ) {
-
-    private val redisLock = RedisLock(redisOperation, "DISPATCH_REDIS_LOCK_ENV_${projectId}_$envId", 60L)
-
-    fun tryLock() = redisLock.tryLock()
-
-    fun lock() = redisLock.lock()
-
-    fun unlock() =
-            redisLock.unlock()
+    fun tryLock(timeout: Long = 1000, interval: Long = 100): Boolean {
+        val sleepTime = min(interval, timeout) // sleep时间不超过timeout
+        val start = System.currentTimeMillis()
+        var tryLock = tryLock()
+        while (timeout > 0 && !tryLock && timeout > (System.currentTimeMillis() - start)) {
+            Thread.sleep(sleepTime)
+            tryLock = tryLock()
+        }
+        return tryLock
+    }
 }

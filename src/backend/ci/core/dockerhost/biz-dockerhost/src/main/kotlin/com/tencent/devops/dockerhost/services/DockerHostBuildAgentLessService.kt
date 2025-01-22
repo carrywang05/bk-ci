@@ -30,15 +30,12 @@ package com.tencent.devops.dockerhost.services
 import com.github.dockerjava.api.model.AccessMode
 import com.github.dockerjava.api.model.Bind
 import com.github.dockerjava.api.model.Binds
-import com.github.dockerjava.api.model.BlkioRateDevice
 import com.github.dockerjava.api.model.HostConfig
 import com.github.dockerjava.api.model.Volume
 import com.tencent.devops.common.pipeline.type.BuildType
-import com.tencent.devops.common.web.mq.alert.AlertLevel
 import com.tencent.devops.dispatch.docker.pojo.DockerHostBuildInfo
 import com.tencent.devops.dockerhost.common.ErrorCodeEnum
 import com.tencent.devops.dockerhost.config.DockerHostConfig
-import com.tencent.devops.dockerhost.dispatch.AlertApi
 import com.tencent.devops.dockerhost.dispatch.DockerEnv
 import com.tencent.devops.dockerhost.dispatch.DockerHostBuildResourceApi
 import com.tencent.devops.dockerhost.exception.ContainerException
@@ -65,8 +62,7 @@ import org.springframework.stereotype.Service
 class DockerHostBuildAgentLessService(
     dockerHostBuildApi: DockerHostBuildResourceApi,
     private val dockerHostConfig: DockerHostConfig,
-    private val dockerHostWorkSpaceService: DockerHostWorkSpaceService,
-    private val alertApi: AlertApi
+    private val dockerHostWorkSpaceService: DockerHostWorkSpaceService
 ) : AbstractDockerHostBuildService(dockerHostConfig, dockerHostBuildApi) {
 
     override fun createContainer(dockerHostBuildInfo: DockerHostBuildInfo): String {
@@ -84,14 +80,11 @@ class DockerHostBuildAgentLessService(
                 projectId = dockerHostBuildInfo.projectId,
                 agentId = dockerHostBuildInfo.agentId,
                 secretKey = dockerHostBuildInfo.secretKey,
-                buildType = dockerHostBuildInfo.buildType
+                buildType = dockerHostBuildInfo.buildType,
+                customBuildEnv = dockerHostBuildInfo.customBuildEnv
             )
         } catch (ignored: Throwable) {
             logger.error("[${dockerHostBuildInfo.buildId}]| create Container failed ", ignored)
-            alertApi.alert(
-                AlertLevel.HIGH.name, "Docker构建机创建容器失败", "Docker构建机创建容器失败, " +
-                        "母机IP:${CommonUtils.getInnerIP()}， 失败信息：${ignored.message}"
-            )
             throw ContainerException(
                 errorCodeEnum = ErrorCodeEnum.CREATE_CONTAINER_ERROR,
                 message = "[${dockerHostBuildInfo.buildId}]|Create container failed"
@@ -111,7 +104,8 @@ class DockerHostBuildAgentLessService(
         projectId: String,
         agentId: String,
         secretKey: String,
-        buildType: BuildType
+        buildType: BuildType,
+        customBuildEnv: Map<String, String>?
     ): String {
         val hostWorkspace = getWorkspace(pipelineId, buildId, vmSeqId.trim())
         val linkPath = dockerHostWorkSpaceService.createSymbolicLink(hostWorkspace)
@@ -145,12 +139,18 @@ class DockerHostBuildAgentLessService(
             Bind(hostWorkspace, volumeWs)
         )
 
-        val blkioRateDeviceWirte = BlkioRateDevice()
-            .withPath("/data")
-            .withRate(dockerHostConfig.blkioDeviceWriteBps)
-        val blkioRateDeviceRead = BlkioRateDevice()
-            .withPath("/data")
-            .withRate(dockerHostConfig.blkioDeviceReadBps)
+//        val blkioRateDeviceWirte = BlkioRateDevice()
+//            .withPath("/data")
+//            .withRate(dockerHostConfig.blkioDeviceWriteBps)
+//        val blkioRateDeviceRead = BlkioRateDevice()
+//            .withPath("/data")
+//            .withRate(dockerHostConfig.blkioDeviceReadBps)
+
+        // #4518 追加无编译环境的构建矩阵上下文
+        val customEnv = mutableListOf<String>()
+        customBuildEnv?.forEach {
+            customEnv.add("${it.key}=${it.value}")
+        }
 
         val container = httpLongDockerCli.createContainerCmd(imageName)
             .withCmd("/bin/sh", ENTRY_POINT_CMD)
@@ -166,7 +166,7 @@ class DockerHostBuildAgentLessService(
                     "$ENV_BK_CI_DOCKER_HOST_IP=${CommonUtils.getInnerIP()}",
                     "$ENV_BK_CI_DOCKER_HOST_WORKSPACE=$linkPath",
                     "$ENV_JOB_BUILD_TYPE=${buildType.name}"
-                )
+                ).plus(customEnv)
             )
             .withHostConfig(
                 // CPU and memory Limit

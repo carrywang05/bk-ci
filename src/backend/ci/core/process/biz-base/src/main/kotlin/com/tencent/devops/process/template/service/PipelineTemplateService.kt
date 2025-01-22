@@ -27,15 +27,19 @@
 
 package com.tencent.devops.process.template.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.tencent.devops.common.api.constant.CommonMessageCode
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.pipeline.Model
+import com.tencent.devops.common.pipeline.container.VMBuildContainer
+import com.tencent.devops.common.pipeline.type.StoreDispatchType
+import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.process.engine.dao.template.TemplateDao
-import com.tencent.devops.process.pojo.PipelineTemplate
 import com.tencent.devops.process.pojo.template.TemplateDetailInfo
 import com.tencent.devops.process.pojo.template.TemplateType
-import com.tencent.devops.process.template.dao.PipelineTemplateDao
+import com.tencent.devops.store.api.image.ServiceStoreImageResource
+import com.tencent.devops.store.pojo.image.enums.ImageStatusEnum
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -46,59 +50,9 @@ import org.springframework.util.StringUtils
 @Service
 class PipelineTemplateService @Autowired constructor(
     private val dslContext: DSLContext,
-    private val pipelineTemplateDao: PipelineTemplateDao,
     private val templateDao: TemplateDao,
-    private val objectMapper: ObjectMapper
+    private val client: Client
 ) {
-    @Suppress("UNCHECKED_CAST")
-    fun listTemplate(projectCode: String): Map<String, PipelineTemplate> {
-        val map = HashMap<String, PipelineTemplate>()
-
-        val templates = pipelineTemplateDao.listTemplates(dslContext, projectCode)
-
-        val srcTemplateIdList = mutableListOf<String>()
-        templates.forEach {
-            if (!it.srcTemplateId.isNullOrEmpty()) {
-                srcTemplateIdList.add(it.srcTemplateId)
-            }
-        }
-        val srcTemplates = mutableMapOf<String, String>()
-        templateDao.listLatestTemplateByIds(dslContext, srcTemplateIdList).forEach {
-            srcTemplates[it["ID"] as String] = it["TEMPLATE"] as String
-        }
-
-        templates.forEach {
-            val flag = !it.srcTemplateId.isNullOrEmpty()
-
-            val model = if (flag) {
-                objectMapper.readValue(srcTemplates[it.srcTemplateId], Model::class.java)
-            } else {
-                objectMapper.readValue(it.template, Model::class.java)
-            }
-            if (flag) {
-                model.srcTemplateId = it.srcTemplateId
-            }
-
-            val key = if (flag) it.srcTemplateId else it.id.toString()
-            map[key] = PipelineTemplate(
-                name = if (flag) it.templateName else model.name,
-                desc = model.desc,
-                category = if (!it.category.isNullOrBlank()) JsonUtil.getObjectMapper().readValue(
-                    it.category,
-                    List::class.java
-                ) as List<String> else listOf(),
-                icon = it.icon,
-                logoUrl = it.logoUrl,
-                author = it.author,
-                atomNum = it.atomnum,
-                publicFlag = it.publicFlag,
-                srcTemplateId = it.srcTemplateId,
-                stages = model.stages
-            )
-        }
-
-        return map
-    }
 
     fun getTemplateDetailInfo(templateCode: String): Result<TemplateDetailInfo?> {
         logger.info("getTemplateDetailInfo templateCode is:$templateCode")
@@ -113,9 +67,53 @@ class PipelineTemplateService @Autowired constructor(
                 templateModel = if (!StringUtils.isEmpty(templateRecord.template)) JsonUtil.to(
                     templateRecord.template,
                     Model::class.java
-                ) else null
+                ) else null,
+                templateVersion = templateRecord.version
             )
         )
+    }
+
+    fun checkImageReleaseStatus(userId: String, templateCode: String): Result<String?> {
+        logger.info("start checkImageReleaseStatus templateCode is:$templateCode")
+        val templateModel = getTemplateDetailInfo(templateCode).data?.templateModel
+            ?: return I18nUtil.generateResponseDataObject(
+                CommonMessageCode.SYSTEM_ERROR,
+                language = I18nUtil.getLanguage(userId)
+            )
+        var code: String? = null
+        val images = mutableSetOf<String>()
+        run releaseStatus@{
+            templateModel.stages.forEach { stage ->
+                stage.containers.forEach imageInfo@{ container ->
+                    if (container is VMBuildContainer && container.dispatchType is StoreDispatchType) {
+                        val imageCode = (container.dispatchType as StoreDispatchType).imageCode
+                        val imageVersion = (container.dispatchType as StoreDispatchType).imageVersion
+                        val image = imageCode + imageVersion
+                        if (imageCode.isNullOrBlank() || imageVersion.isNullOrBlank()) {
+                            return@imageInfo
+                        } else {
+                            if (images.contains(image)) {
+                                return@imageInfo
+                            } else {
+                                images.add(image)
+                            }
+                            if (!isRelease(imageCode, imageVersion)) {
+                                code = imageCode
+                            }
+                            return@releaseStatus
+                        }
+                    } else {
+                        return@imageInfo
+                    }
+                }
+            } }
+        return Result(code)
+    }
+
+    private fun isRelease(imageCode: String, imageVersion: String): Boolean {
+        val imageStatus = client.get(ServiceStoreImageResource::class)
+            .getImageStatusByCodeAndVersion(imageCode, imageVersion).data
+        return ImageStatusEnum.RELEASED.name == imageStatus
     }
 
     companion object {

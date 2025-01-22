@@ -37,8 +37,8 @@ import com.tencent.devops.common.pipeline.pojo.element.RunCondition
 import com.tencent.devops.common.pipeline.type.BuildType
 import com.tencent.devops.process.engine.common.VMUtils
 import com.tencent.devops.process.engine.pojo.PipelineBuildTask
-import org.springframework.stereotype.Component
 import javax.xml.bind.Element
+import org.springframework.stereotype.Component
 
 /**
  * 生成运行环境操作的插件任务
@@ -55,11 +55,19 @@ class VmOperateTaskGenerator {
 
         fun isVmAtom(task: PipelineBuildTask) = isStartVM(task) || isStopVM(task)
 
+        fun isVmAtom(atomCode: String) = isStartVM(atomCode) || isStopVM(atomCode)
+
         fun isStartVM(task: PipelineBuildTask) =
             task.taskAtom == START_VM_TASK_ATOM || task.taskAtom == START_NORMAL_TASK_ATOM
 
         fun isStopVM(task: PipelineBuildTask) =
             task.taskAtom == SHUTDOWN_VM_TASK_ATOM || task.taskAtom == SHUTDOWN_NORMAL_TASK_ATOM
+
+        fun isStartVM(atomCode: String) =
+            atomCode.startsWith(START_VM_TASK_ATOM) || atomCode.startsWith(START_NORMAL_TASK_ATOM)
+
+        fun isStopVM(atomCode: String) =
+            atomCode.startsWith(SHUTDOWN_VM_TASK_ATOM) || atomCode.startsWith(SHUTDOWN_NORMAL_TASK_ATOM)
     }
 
     /**
@@ -104,7 +112,7 @@ class VmOperateTaskGenerator {
             buildId = buildId,
             stageId = stageId,
             containerId = container.id!!,
-            containerHashId = container.containerId ?: "",
+            containerHashId = container.containerHashId ?: "",
             containerType = container.getClassType(),
             taskSeq = taskSeq,
             taskId = VMUtils.genStartVMTaskId(container.id!!),
@@ -119,7 +127,9 @@ class VmOperateTaskGenerator {
             subProjectId = null,
             subBuildId = null,
             additionalOptions = additionalOptions,
-            atomCode = atomCode
+            atomCode = atomCode,
+            stepId = null,
+            jobId = container.jobId
         )
     }
 
@@ -152,7 +162,7 @@ class VmOperateTaskGenerator {
 
         val containerId = container.id!!
         val containerType = container.getClassType()
-        val endTaskSeq = VMUtils.genVMSeq(containerSeq, taskSeq - 1)
+        val endTaskSeq = VMUtils.genVMTaskSeq(containerSeq, taskSeq - 1)
 
         var taskName = "Wait_Finish_Job#${container.id!!}($taskType)"
         var additionalOptions = container.opts(taskName = taskName, taskSeq = taskSeq)
@@ -165,7 +175,7 @@ class VmOperateTaskGenerator {
                 buildId = buildId,
                 stageId = stageId,
                 containerId = containerId,
-                containerHashId = container.containerId ?: "",
+                containerHashId = container.containerHashId ?: "",
                 containerType = containerType,
                 taskSeq = endTaskSeq,
                 taskId = VMUtils.genEndPointTaskId(endTaskSeq),
@@ -180,12 +190,14 @@ class VmOperateTaskGenerator {
                 subProjectId = null,
                 subBuildId = null,
                 additionalOptions = additionalOptions,
-                atomCode = "$SHUTDOWN_VM_TASK_ATOM-END"
+                atomCode = "$SHUTDOWN_VM_TASK_ATOM-END",
+                stepId = null,
+                jobId = container.jobId
             )
         )
 
         // stopVM-1xxx 停止虚拟机节点
-        val stopVMTaskSeq = VMUtils.genVMSeq(containerSeq, taskSeq)
+        val stopVMTaskSeq = VMUtils.genVMTaskSeq(containerSeq, taskSeq)
         val taskParams = container.genTaskParams()
         taskParams["elements"] = emptyList<Element>() // elements可能过多导致存储问题
         taskName = "Clean_Job#$containerId($taskType)"
@@ -198,7 +210,7 @@ class VmOperateTaskGenerator {
                 buildId = buildId,
                 stageId = stageId,
                 containerId = containerId,
-                containerHashId = container.containerId ?: "",
+                containerHashId = container.containerHashId ?: "",
                 containerType = containerType,
                 taskSeq = stopVMTaskSeq,
                 taskId = VMUtils.genStopVMTaskId(stopVMTaskSeq),
@@ -213,7 +225,9 @@ class VmOperateTaskGenerator {
                 subProjectId = null,
                 subBuildId = null,
                 additionalOptions = additionalOptions,
-                atomCode = "$SHUTDOWN_VM_TASK_ATOM-FINISH"
+                atomCode = "$SHUTDOWN_VM_TASK_ATOM-FINISH",
+                stepId = null,
+                jobId = container.jobId
             )
         )
 

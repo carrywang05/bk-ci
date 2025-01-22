@@ -1,9 +1,15 @@
 <template>
     <div class="environment-create">
         <content-header class="env-header">
-            <div slot="left" class="title">
-                <i class="devops-icon icon-arrows-left" @click="toEnvList"></i>
-                <span class="header-text">{{ `${$t('environment.new')}${$t('environment.environment')}` }}</span>
+            <div
+                slot="left"
+                class="title"
+            >
+                <i
+                    class="devops-icon icon-arrows-left"
+                    @click="toEnvList"
+                ></i>
+                <span class="header-text">{{ `${$t('environment.createEnvTitle')}` }}</span>
             </div>
         </content-header>
 
@@ -12,66 +18,110 @@
             v-bkloading="{
                 isLoading: loading.isLoading,
                 title: loading.title
-            }">
-
-            <empty-tips v-if="!hasPermission"
+            }"
+        >
+            <empty-tips
+                v-if="!hasPermission"
                 :title="emptyTipsConfig.title"
                 :desc="emptyTipsConfig.desc"
-                :btns="emptyTipsConfig.btns">
+                :btns="emptyTipsConfig.btns"
+            >
             </empty-tips>
 
-            <bk-form :label-width="100" class="create-env-form" :model="createEnvForm" v-if="hasPermission && !loading.isLoading">
-                <devops-form-item :label="$t('environment.envInfo.name')" :required="true" :property="'name'" :is-error="errors.has('env_name')" :error-msg="errors.first('env_name')">
+            <bk-form
+                :label-width="100"
+                class="create-env-form"
+                :model="createEnvForm"
+                v-if="hasPermission && !loading.isLoading"
+            >
+                <devops-form-item
+                    :label="$t('environment.envInfo.name')"
+                    :required="true"
+                    :property="'name'"
+                    :is-error="errors.has('env_name')"
+                    :error-msg="errors.first('env_name')"
+                >
                     <bk-input
                         class="env-name-input"
                         name="env_name"
                         maxlength="30"
                         :placeholder="$t('environment.pleaseEnter')"
                         v-model="createEnvForm.name"
-                        v-validate="'required'">
+                        v-validate="'required'"
+                    >
                     </bk-input>
                 </devops-form-item>
-                <bk-form-item :label="$t('environment.envInfo.envRemark')" :property="'desc'">
+                <bk-form-item
+                    :label="$t('environment.envInfo.envRemark')"
+                    :property="'desc'"
+                >
                     <bk-input
                         class="env-desc-input"
                         :placeholder="$t('environment.pleaseEnter')"
                         :type="'textarea'"
                         :rows="3"
                         :maxlength="100"
-                        v-model="createEnvForm.desc">
+                        v-model="createEnvForm.desc"
+                    >
                     </bk-input>
                 </bk-form-item>
-                <bk-form-item :label="$t('environment.envInfo.envType')" class="env-type-item" :required="true" :property="'envType'">
+                <!-- <bk-form-item :label="$t('environment.envInfo.envType')" class="env-type-item" :required="true" :property="'envType'">
                     <bk-radio-group v-model="createEnvForm.envType">
                         <bk-radio :value="'BUILD'">{{ $t('environment.envInfo.buildEnvType') }}</bk-radio>
                     </bk-radio-group>
-                </bk-form-item>
-                <bk-form-item :label="$t('environment.nodeInfo.nodeSource')" :required="true" :property="'source'">
+                </bk-form-item> -->
+                <bk-form-item
+                    :label="$t('environment.nodeInfo.nodeSource')"
+                    :required="true"
+                    :property="'source'"
+                >
                     <div class="env-source-content">
-                        <div class="source-type-radio">
+                        <!-- <div class="source-type-radio">
                             <bk-radio-group v-model="createEnvForm.source">
                                 <bk-radio :value="'EXISTING'">{{ $t('environment.thirdPartyBuildMachine') }}</bk-radio>
                             </bk-radio-group>
                             <span class="preview-node-btn"
                                 v-if="createEnvForm.source === 'EXISTING' && previewNodeList.length > 0"
-                                @click="toShowNodeList">{{ $t('environment.nodeInfo.selectNode') }}</span>
-                        </div>
-                        <div class="empty-node-selected" v-if="createEnvForm.source === 'EXISTING' && previewNodeList.length === 0">
-                            <p class="empty-prompt">{{ $t('environment.nodeInfo.notyetNode') }}，
-                                <span class="show-node-dialog" @click="toShowNodeList">{{ $t('environment.nodeInfo.clickSelectNode') }}</span>
+                                @click="toShowNodeList"
+                            >
+                                {{ $t('environment.nodeInfo.selectNode') }}
+                            </span>
+                        </div> -->
+                        <div
+                            class="empty-node-selected"
+                            v-if="createEnvForm.source === 'EXISTING' && previewNodeList.length === 0"
+                        >
+                            <p class="empty-prompt">
+                                {{ $t('environment.nodeInfo.notyetNode') }}，
+                                <span
+                                    class="show-node-dialog"
+                                    @click="toShowNodeList"
+                                >{{ $t('environment.nodeInfo.clickSelectNode') }}</span>
                             </p>
-                            <div v-if="errorHandler.nodeHashIds" class="error-tips">{{ $t('environment.nodeInfo.haveToNeedNode') }}</div>
+                            <div
+                                v-if="errorHandler.nodeHashIds"
+                                class="error-tips"
+                            >
+                                {{ $t('environment.nodeInfo.haveToNeedNode') }}
+                            </div>
                         </div>
-                        <div class="selected-node-Preview" v-if="createEnvForm.source === 'EXISTING' && previewNodeList.length > 0">
+                        <div
+                            class="selected-node-Preview"
+                            v-if="createEnvForm.source === 'EXISTING' && previewNodeList.length > 0"
+                        >
                             <div class="node-table-message">
                                 <div class="table-node-head">
                                     <div class="table-node-item node-item-ip">IP</div>
-                                    <div class="table-node-item node-item-name">{{ $t('environment.nodeInfo.cpuName') }}</div>
+                                    <div class="table-node-item node-item-name">{{ $t('environment.nodeInfo.hostName') }}</div>
                                     <div class="table-node-item node-item-type">{{ $t('environment.nodeInfo.nodeType') }}</div>
                                     <div class="table-node-item node-item-status">{{ $t('environment.nodeInfo.nodeStatus') }}</div>
                                 </div>
                                 <div class="table-node-body">
-                                    <div class="table-node-row" v-for="(row, index) of previewNodeList" :key="index">
+                                    <div
+                                        class="table-node-row"
+                                        v-for="(row, index) of previewNodeList"
+                                        :key="index"
+                                    >
                                         <div class="table-node-item node-item-ip">
                                             <span class="node-ip">{{ row.ip }}</span>
                                         </div>
@@ -91,12 +141,25 @@
                     </div>
                 </bk-form-item>
                 <bk-form-item>
-                    <bk-button theme="primary" :title="$t('environment.submit')" @click.stop.prevent="submit">{{ $t('environment.submit') }}</bk-button>
-                    <bk-button theme="default" :title="$t('environment.cancel')" @click="toEnvList">{{ $t('environment.cancel') }}</bk-button>
+                    <bk-button
+                        theme="primary"
+                        :title="$t('environment.submit')"
+                        @click.stop.prevent="submit"
+                    >
+                        {{ $t('environment.submit') }}
+                    </bk-button>
+                    <bk-button
+                        theme="default"
+                        :title="$t('environment.cancel')"
+                        @click="toEnvList"
+                    >
+                        {{ $t('environment.cancel') }}
+                    </bk-button>
                 </bk-form-item>
             </bk-form>
         </section>
-        <node-select :node-select-conf="nodeSelectConf"
+        <node-select
+            :node-select-conf="nodeSelectConf"
             :search-info="searchInfo"
             :cur-user-info="curUserInfo"
             :row-list="nodeList"
@@ -105,19 +168,21 @@
             :loading="nodeDialogLoading"
             :confirm-fn="confirmFn"
             :cancel-fn="cancelFn"
-            :query="query">
+            :query="query"
+        >
         </node-select>
     </div>
 </template>
 
 <script>
-    import nodeSelect from '@/components/devops/environment/node-select-dialog'
     import emptyTips from '@/components/devops/emptyTips'
+    import { ENV_RESOURCE_ACTION, ENV_RESOURCE_TYPE } from '../utils/permission'
 
+    import nodeSelect from '@/components/devops/environment/node-select-dialog'
     export default {
         components: {
-            'empty-tips': emptyTips,
-            nodeSelect
+            nodeSelect,
+            'empty-tips': emptyTips
         },
         data () {
             return {
@@ -198,7 +263,7 @@
                         {
                             type: 'success',
                             size: 'normal',
-                            handler: this.goToApplyPerm,
+                            handler: this.applyPermission,
                             text: this.$t('environment.applyPermission')
                         }
                     ]
@@ -231,7 +296,7 @@
                         this.nodeSelectConf.unselected = true
                     }
 
-                    this.nodeList.filter(item => {
+                    this.nodeList.forEach(item => {
                         if (item.isChecked) curCount++
                     })
 
@@ -264,13 +329,13 @@
             changeProject () {
                 this.iframeUtil.toggleProjectMenu(true)
             },
-            goToApplyPerm () {
-                this.applyPermission(this.$permissionActionMap.create, this.$permissionResourceMap.environment, [{
-                    id: this.projectId,
-                    type: this.$permissionResourceTypeMap.PROJECT
-                }])
-                // const url = `/backend/api/perm/apply/subsystem/?client_id=environment&project_code=${this.projectId}&service_code=environment&role_creator=environment`
-                // window.open(url, '_blank')
+            applyPermission () {
+                this.handleNoPermission({
+                    projectId: this.projectId,
+                    resourceType: ENV_RESOURCE_TYPE,
+                    resourceCode: this.projectId,
+                    action: ENV_RESOURCE_ACTION.CREATE
+                })
             },
             /**
              * 弹窗全选联动
@@ -483,11 +548,11 @@
                         if (isValid && result) {
                             let message, theme
                             const createEnv = {
-                                'name': this.createEnvForm.name.trim(),
-                                'desc': this.createEnvForm.desc,
-                                'envType': this.createEnvForm.envType,
-                                'source': this.createEnvForm.source,
-                                'envVars': []
+                                name: this.createEnvForm.name.trim(),
+                                desc: this.createEnvForm.desc,
+                                envType: this.createEnvForm.envType,
+                                source: this.createEnvForm.source,
+                                envVars: []
                             }
 
                             if (this.createEnvForm.source === 'CREATE') {
@@ -525,7 +590,7 @@
 
                                 if (theme === 'success') {
                                     this.$router.push({
-                                        'name': 'envList'
+                                        name: 'envList'
                                     })
                                 }
                             }
@@ -572,7 +637,7 @@
 
                     this.nodeList.splice(0, this.nodeList.length)
 
-                    res.map(item => {
+                    res.forEach(item => {
                         item.isChecked = false
 
                         if (this.createEnvForm.envType === 'BUILD') {
@@ -591,8 +656,8 @@
 
                         this.nodeList.push(item)
 
-                        this.previewNodeList.filter(vv => {
-                            this.nodeList.filter(kk => {
+                        this.previewNodeList.forEach(vv => {
+                            this.nodeList.forEach(kk => {
                                 if (vv.nodeHashId === kk.nodeHashId) {
                                     kk.isChecked = true
                                 }
@@ -677,7 +742,8 @@
         .source-type-radio {
             display: flex;
             justify-content: space-between;
-            padding-left: 14px;
+            align-items: center;
+            padding: 0 20px 0 14px;
             height: 42px;
             line-height: 38px;
             border-bottom: 1px solid $borderWeightColor;
@@ -742,10 +808,7 @@
         }
 
         .preview-node-btn {
-            float: right;
-            padding-right: 20px;
-            line-height: 42px;
-            width: 82px;
+            flex-shrink: 0;
             cursor: pointer;
             color: $primaryColor;
             font-size: 14px;

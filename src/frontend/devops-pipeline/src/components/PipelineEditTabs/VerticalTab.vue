@@ -3,15 +3,27 @@
         <aside>
             <slot name="tab">
                 <ul class="bkdevops-vertical-tab-list">
-                    <li v-for="(tab, index) in tabs" :class="{ 'active': tabActiveIndex === index }" :key="tab.id" @click="handleTabClick(index)" :title="tab.name">
+                    <li
+                        v-for="(tab, index) in tabs"
+                        :class="{ 'active': tabActiveIndex === index }"
+                        :key="tab.id"
+                        @click="handleTabClick(index)"
+                        :title="tab.name"
+                    >
                         {{ tab.name }}
                     </li>
                 </ul>
             </slot>
         </aside>
         <section>
-            <slot name="panel" :tabActiveIndex="tabActiveIndex">
-                <component :is="activeTab.component" v-bind="activeTab.componentProps"></component>
+            <slot
+                name="panel"
+                :tabActiveIndex="tabActiveIndex"
+            >
+                <component
+                    :is="activeTab.component"
+                    v-bind="activeTab.componentProps"
+                ></component>
             </slot>
         </section>
     </div>
@@ -22,9 +34,6 @@
     import BaseInfo from '@/components/pipelineSetting/BaseInfo'
     import RunningLock from '@/components/pipelineSetting/RunningLock'
     import CodeRecordTable from '@/components/codeRecord/CodeRecordTable'
-    import thirdPartyReport from '@/components/outputOption/thirdParty_report'
-    import IframeReport from '@/components/outputOption/IframeReport'
-    import TrendTable from '@/components/trendData/TrendTable'
 
     export default {
         name: 'vertical-tab',
@@ -32,10 +41,7 @@
             NotifySetting,
             BaseInfo,
             RunningLock,
-            CodeRecordTable,
-            thirdPartyReport,
-            IframeReport,
-            TrendTable
+            CodeRecordTable
         },
         props: {
             tabs: {
@@ -107,20 +113,6 @@
             padding: 30px 25px;
             background-color: white;
             overflow: auto;
-
-            .bk-form-item{
-                margin: 0 0 30px 0;
-                .bk-label {
-                    width: 150px;
-                    text-align: right;
-                    float:left;
-                    padding-right: 20px;
-                }
-                .bk-form-content {
-                    display: block;
-                    margin-left: 150px;
-                }
-            }
         }
     }
 </style>

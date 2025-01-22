@@ -1,8 +1,18 @@
 <template>
-    <section style="pointer-events: all; position: relative" v-bkloading="{ isLoading }">
-        <div :class="['ace-fullscreen', { 'active': isFullScreen }]" :alt="$t('editPage.isFullScreen')" :title="$t('editPage.isFullScreen')"
-            @click="setFullScreen">
-            <i class="devops-icon" :class="isFullScreen ? &quot;icon-un-full-screen&quot; : &quot;icon-full-screen&quot;"></i>
+    <section
+        style="pointer-events: all; position: relative"
+        v-bkloading="{ isLoading }"
+    >
+        <div
+            :class="['ace-fullscreen', { 'active': isFullScreen }]"
+            :alt="$t('editPage.isFullScreen')"
+            :title="$t('editPage.isFullScreen')"
+            @click="setFullScreen"
+        >
+            <i
+                class="devops-icon"
+                :class="isFullScreen ? 'icon-un-full-screen' : 'icon-full-screen'"
+            ></i>
         </div>
         <ace
             class="ace-wrapper"
@@ -13,7 +23,8 @@
             :full-screen="isFullScreen"
             @input="handleScriptInput"
             :height="height"
-            width="100%">
+            width="100%"
+        >
         </ace>
     </section>
 </template>
@@ -38,6 +49,10 @@
             bashConf: {
                 type: Object,
                 default: () => ({})
+            },
+            defaultHeight: {
+                type: Number,
+                default: 360
             }
         },
         data () {
@@ -52,16 +67,20 @@
                 const top = getActualTop(this.$el)
                 const { clientHeight } = document.body
                 if (newVal) {
-                    this.height = Math.max(clientHeight - 10, 360)
+                    this.height = Math.max(clientHeight - 10, this.defaultHeight)
                 } else {
-                    this.height = Math.max(clientHeight - top - 180, 360)
+                    this.height = Math.max(clientHeight - top - 180, this.defaultHeight)
                 }
             }
         },
         mounted () {
             const top = getActualTop(this.$el)
             const { clientHeight } = document.body
-            this.height = Math.max(clientHeight - top - 180, 360)
+            if (this.defaultHeight !== 360) {
+                this.height = this.defaultHeight
+            } else {
+                this.height = Math.max(clientHeight - top - 180, this.defaultHeight)
+            }
             this.getInitValue()
         },
         methods: {
@@ -78,7 +97,7 @@
                             return response.data
                         case response.data && response.data.record && typeof response.data.record === 'string':
                             return response.data.record
-                        default:
+                        default: {
                             const path = dataPath.split('.')
                             let result = response
                             let pos = 0
@@ -92,6 +111,7 @@
                             } else {
                                 throw Error(this.$t('editPage.failToGetData'))
                             }
+                        }
                     }
                 } catch (e) {
                     console.error(e)
@@ -104,6 +124,7 @@
                 if (url && typeof url === 'string' && defalutValue === value) {
                     const query = this.$route.params
                     const changeUrl = this.urlParse(url, {
+                        bkPoolType: this?.container?.dispatchType?.buildType,
                         ...query,
                         ...element
                     })
@@ -125,7 +146,6 @@
 
 <style lang="scss">
     .ace-fullscreen {
-        top: 10px;
         right: 10px;
         position: absolute;
         z-index: 999;

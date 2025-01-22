@@ -29,7 +29,7 @@ package com.tencent.devops.process.engine.listener.pipeline
 
 import com.tencent.devops.common.api.util.Watcher
 import com.tencent.devops.common.event.dispatcher.pipeline.PipelineEventDispatcher
-import com.tencent.devops.common.event.listener.pipeline.BaseListener
+import com.tencent.devops.common.event.listener.pipeline.PipelineEventListener
 import com.tencent.devops.common.service.utils.LogUtils
 import com.tencent.devops.process.engine.control.CallBackControl
 import com.tencent.devops.process.engine.pojo.event.PipelineDeleteEvent
@@ -37,6 +37,7 @@ import com.tencent.devops.process.engine.service.AgentPipelineRefService
 import com.tencent.devops.process.engine.service.PipelineAtomStatisticsService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.engine.service.PipelineWebhookService
+import com.tencent.devops.process.engine.service.RepoPipelineRefService
 import com.tencent.devops.process.service.label.PipelineGroupService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
@@ -55,42 +56,51 @@ class MQPipelineDeleteListener @Autowired constructor(
     private val pipelineAtomStatisticsService: PipelineAtomStatisticsService,
     private val callBackControl: CallBackControl,
     private val agentPipelineRefService: AgentPipelineRefService,
+    private val repoPipelineRefService: RepoPipelineRefService,
     pipelineEventDispatcher: PipelineEventDispatcher
-) : BaseListener<PipelineDeleteEvent>(pipelineEventDispatcher) {
+) : PipelineEventListener<PipelineDeleteEvent>(pipelineEventDispatcher) {
 
     override fun run(event: PipelineDeleteEvent) {
         val watcher = Watcher(id = "${event.traceId}|DeletePipeline#${event.pipelineId}|${event.clearUpModel}")
-        try {
-            val projectId = event.projectId
-            val pipelineId = event.pipelineId
-            val userId = event.userId
+        val projectId = event.projectId
+        val pipelineId = event.pipelineId
+        val userId = event.userId
 
-            watcher.start("cancelPendingTask")
+        watcher.safeAround("cancelPendingTask") {
             pipelineRuntimeService.cancelPendingTask(projectId, pipelineId, userId)
-            watcher.stop()
-
-            if (event.clearUpModel) {
-                watcher.start("deleteExt")
-                pipelineGroupService.deleteAllUserFavorByPipeline(userId, pipelineId) // 删除收藏该流水线上所有记录
-                pipelineGroupService.deletePipelineLabel(userId, pipelineId)
-                pipelineRuntimeService.deletePipelineBuilds(projectId, pipelineId)
-            }
-            watcher.start("deleteWebhook")
-            pipelineWebhookService.deleteWebhook(pipelineId, userId)
-            watcher.stop()
-            watcher.start("updateAgentPipelineRef")
-            with(event) {
-                agentPipelineRefService.updateAgentPipelineRef(userId, "delete_pipeline", projectId, pipelineId)
-            }
-            watcher.stop()
-            watcher.start("updateAtomPipelineNum")
-            pipelineAtomStatisticsService.updateAtomPipelineNum(pipelineId = event.pipelineId, deleteFlag = true)
-            watcher.stop()
-            watcher.start("callback")
-            callBackControl.pipelineDeleteEvent(projectId = event.projectId, pipelineId = event.pipelineId)
-        } finally {
-            watcher.stop()
-            LogUtils.printCostTimeWE(watcher = watcher)
         }
+
+        if (event.clearUpModel) {
+            watcher.safeAround("deleteExt") {
+                pipelineGroupService.deleteAllUserFavorByPipeline(userId, projectId, pipelineId) // 删除收藏该流水线上所有记录
+                pipelineGroupService.deletePipelineLabel(userId, projectId, pipelineId)
+            }
+        }
+
+        watcher.safeAround("deleteWebhook") {
+            pipelineWebhookService.deleteWebhook(projectId, pipelineId, userId)
+        }
+
+        watcher.safeAround("updateAgentPipelineRef") {
+            agentPipelineRefService.updateAgentPipelineRef(userId, "delete_pipeline", projectId, pipelineId)
+        }
+
+        watcher.safeAround("updateAtomPipelineNum") {
+            pipelineAtomStatisticsService.updateAtomPipelineNum(
+                projectId = event.projectId,
+                pipelineId = event.pipelineId,
+                deleteFlag = true
+            )
+        }
+
+        watcher.safeAround("updateAgentPipelineRef") {
+            repoPipelineRefService.updateRepoPipelineRef(userId, "delete_pipeline", projectId, pipelineId)
+        }
+
+        watcher.safeAround("callback") {
+            callBackControl.pipelineDeleteEvent(projectId = event.projectId, pipelineId = event.pipelineId)
+        }
+
+        LogUtils.printCostTimeWE(watcher = watcher)
     }
 }

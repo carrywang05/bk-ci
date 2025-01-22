@@ -1,9 +1,29 @@
 <template>
     <div class="bk-form bk-form-vertical">
         <template v-for="(obj, key) in newModel">
-            <form-field v-if="!obj.hidden" :key="key" :desc="obj.desc" :required="obj.required" :label="obj.label" :is-error="errors.has(key)" :error-msg="errors.first(key)">
-                <component :is="obj.component" :name="key" v-validate.initial="Object.assign({}, { max: getMaxLengthByType(obj.component) }, obj.rule, { required: obj.required })" :handle-change="(key === 'buildNoType') ? handleChoose : (key === 'pipelineId') ? handleSelect : handleUpdateElement" :value="element[key]" v-bind="obj"></component>
-                <route-tips :visible="true" :src-tips="srcTips" :path-tips="pathTips" v-if="key === 'destPath' && element['srcPaths']"></route-tips>
+            <form-field
+                v-if="!obj.hidden"
+                :key="key"
+                :desc="obj.desc"
+                :required="obj.required"
+                :label="obj.label"
+                :is-error="errors.has(key)"
+                :error-msg="errors.first(key)"
+            >
+                <component
+                    :is="obj.component"
+                    :name="key"
+                    v-validate.initial="Object.assign({}, { max: getMaxLengthByType(obj.component) }, obj.rule, { required: obj.required })"
+                    :handle-change="(key === 'buildNoType') ? handleChoose : (key === 'pipelineId') ? handleSelect : handleUpdateElement"
+                    :value="element[key]"
+                    v-bind="obj"
+                ></component>
+                <route-tips
+                    :visible="true"
+                    :src-tips="srcTips"
+                    :path-tips="pathTips"
+                    v-if="key === 'destPath' && element['srcPaths']"
+                ></route-tips>
             </form-field>
         </template>
     </div>
@@ -80,7 +100,7 @@
                     const buildNoList = []
                     if (res.data) {
                         for (let i = 0; i < res.data.length; i++) {
-                            buildNoList.push(Object.assign({}, { id: res.data[i]['key'], name: res.data[i]['key'] }))
+                            buildNoList.push(Object.assign({}, { id: res.data[i].key, name: res.data[i].key }))
                         }
                         this.newModel.buildNo.list = buildNoList
                     }

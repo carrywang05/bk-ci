@@ -28,15 +28,23 @@
 package com.tencent.devops.artifactory.resources
 
 import com.tencent.devops.artifactory.api.service.ServiceBkRepoResource
-import com.tencent.devops.artifactory.client.bkrepo.DefaultBkRepoClient
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.archive.client.BkRepoClient
 import com.tencent.devops.common.web.RestResource
 
 @RestResource
 class ServiceBkRepoResourceImpl(
-    private val defaultBkRepoClient: DefaultBkRepoClient
+    private val bkRepoClient: BkRepoClient
 ) : ServiceBkRepoResource {
     override fun createProjectResource(userId: String, projectId: String): Result<Boolean> {
-        return Result(defaultBkRepoClient.createBkRepoResource(userId, projectId))
+        return Result(bkRepoClient.createBkRepoResource(userId, projectId))
+    }
+
+    override fun enableProject(
+        userId: String,
+        projectId: String,
+        enabled: Boolean
+    ): Result<Boolean> {
+        return Result(bkRepoClient.enableProject(userId, projectId, enabled))
     }
 }

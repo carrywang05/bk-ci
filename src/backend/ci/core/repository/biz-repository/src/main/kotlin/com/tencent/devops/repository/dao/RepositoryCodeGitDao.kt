@@ -27,8 +27,11 @@
 
 package com.tencent.devops.repository.dao
 
+import com.tencent.devops.common.api.enums.ScmType
+import com.tencent.devops.model.repository.tables.TRepository
 import com.tencent.devops.model.repository.tables.TRepositoryCodeGit
 import com.tencent.devops.model.repository.tables.records.TRepositoryCodeGitRecord
+import com.tencent.devops.repository.pojo.RepoOauthRefVo
 import com.tencent.devops.repository.pojo.UpdateRepositoryInfoRequest
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
 import org.jooq.DSLContext
@@ -46,7 +49,8 @@ class RepositoryCodeGitDao {
         projectName: String,
         userName: String,
         credentialId: String,
-        authType: RepoAuthType?
+        authType: RepoAuthType?,
+        gitProjectId: Long
     ) {
         val now = LocalDateTime.now()
         with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
@@ -58,7 +62,8 @@ class RepositoryCodeGitDao {
                 CREDENTIAL_ID,
                 CREATED_TIME,
                 UPDATED_TIME,
-                AUTH_TYPE
+                AUTH_TYPE,
+                GIT_PROJECT_ID
             )
                 .values(
                     repositoryId,
@@ -67,7 +72,8 @@ class RepositoryCodeGitDao {
                     credentialId,
                     now,
                     now,
-                    authType?.name
+                    authType?.name,
+                    gitProjectId
                 ).execute()
         }
     }
@@ -98,17 +104,21 @@ class RepositoryCodeGitDao {
         projectName: String,
         userName: String,
         credentialId: String,
-        authType: RepoAuthType?
+        authType: RepoAuthType?,
+        gitProjectId: Long?
     ) {
         val now = LocalDateTime.now()
         with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
-            dslContext.update(this)
+            val updateSetStep = dslContext.update(this)
                 .set(PROJECT_NAME, projectName)
                 .set(USER_NAME, userName)
                 .set(CREDENTIAL_ID, credentialId)
                 .set(UPDATED_TIME, now)
                 .set(AUTH_TYPE, authType?.name ?: RepoAuthType.SSH.name)
-                .where(REPOSITORY_ID.eq(repositoryId))
+            if (gitProjectId != null) {
+                updateSetStep.set(GIT_PROJECT_ID, gitProjectId)
+            }
+            updateSetStep.where(REPOSITORY_ID.eq(repositoryId))
                 .execute()
         }
     }
@@ -136,5 +146,103 @@ class RepositoryCodeGitDao {
                 .where(REPOSITORY_ID.eq(repositoryId))
                 .execute()
         }
+    }
+
+    /**
+     * 分页查询
+     */
+    fun getAllRepo(
+        dslContext: DSLContext,
+        limit: Int,
+        offset: Int
+    ): Result<TRepositoryCodeGitRecord>? {
+        with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
+            return dslContext.selectFrom(this)
+                .orderBy(CREATED_TIME.desc())
+                .limit(limit).offset(offset)
+                .fetch()
+        }
+    }
+
+    fun updateGitProjectId(
+        dslContext: DSLContext,
+        id: Long,
+        gitProjectId: Long
+    ) {
+        with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
+            val conditions = mutableListOf(
+                REPOSITORY_ID.eq(id),
+                GIT_PROJECT_ID.le(0)
+            )
+            dslContext.update(this)
+                .set(GIT_PROJECT_ID, gitProjectId)
+                .where(conditions)
+                .execute()
+        }
+    }
+
+    fun listByGitProjectId(
+        dslContext: DSLContext,
+        gitProjectId: Long
+    ): List<TRepositoryCodeGitRecord> {
+        return with(TRepositoryCodeGit.T_REPOSITORY_CODE_GIT) {
+            dslContext.selectFrom(this)
+                .where(GIT_PROJECT_ID.eq(gitProjectId))
+                .fetch()
+        }
+    }
+
+    fun countOauthRepo(
+        dslContext: DSLContext,
+        userId: String
+    ): Long {
+        val t1 = TRepository.T_REPOSITORY
+        val t2 = TRepositoryCodeGit.T_REPOSITORY_CODE_GIT
+        return dslContext.selectCount()
+            .from(t1)
+            .leftJoin(t2)
+            .on(t1.REPOSITORY_ID.eq(t2.REPOSITORY_ID))
+            .where(
+                listOf(
+                    t1.IS_DELETED.eq(false),
+                    t1.TYPE.eq(ScmType.CODE_GIT.name),
+                    t2.AUTH_TYPE.eq(RepoAuthType.OAUTH.name),
+                    t2.USER_NAME.eq(userId)
+                )
+            )
+            .fetchOne(0, Long::class.java)!!
+    }
+
+    fun listOauthRepo(
+        dslContext: DSLContext,
+        userId: String,
+        limit: Int,
+        offset: Int
+    ): List<RepoOauthRefVo> {
+        val t1 = TRepository.T_REPOSITORY
+        val t2 = TRepositoryCodeGit.T_REPOSITORY_CODE_GIT
+        return dslContext.select(t1.ALIAS_NAME, t1.URL, t1.PROJECT_ID, t1.REPOSITORY_HASH_ID)
+            .from(t1)
+            .leftJoin(t2)
+            .on(t1.REPOSITORY_ID.eq(t2.REPOSITORY_ID))
+            .where(
+                listOf(
+                    t1.IS_DELETED.eq(false),
+                    t1.TYPE.eq(ScmType.CODE_GIT.name),
+                    t2.AUTH_TYPE.eq(RepoAuthType.OAUTH.name),
+                    t2.USER_NAME.eq(userId)
+                )
+            )
+            .limit(limit)
+            .offset(offset)
+            .fetch()
+            .map {
+                RepoOauthRefVo(
+                    aliasName = it.get(0).toString(),
+                    url = it.get(1).toString(),
+                    projectId = it.get(2).toString(),
+                    hashId = it.get(3).toString()
+                )
+            }
     }
 }

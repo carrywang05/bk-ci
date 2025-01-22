@@ -28,18 +28,24 @@
 package com.tencent.devops.process.engine.dao.template
 
 import com.tencent.devops.common.api.exception.ErrorCodeException
+import com.tencent.devops.common.db.utils.skipCheck
 import com.tencent.devops.model.process.tables.TTemplate
 import com.tencent.devops.model.process.tables.records.TTemplateRecord
 import com.tencent.devops.process.constant.ProcessMessageCode
+import com.tencent.devops.process.constant.ProcessMessageCode.FAIL_TO_LIST_TEMPLATE_PARAMS
+import com.tencent.devops.process.pojo.PTemplateOrderByType
+import com.tencent.devops.process.pojo.PTemplateSortType
 import com.tencent.devops.process.pojo.template.TemplateType
+import com.tencent.devops.store.pojo.common.KEY_CREATE_TIME
+import com.tencent.devops.store.pojo.common.KEY_ID
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Record
 import org.jooq.Record1
 import org.jooq.Result
+import org.jooq.impl.DSL
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
-import javax.ws.rs.NotFoundException
 
 @Suppress("ALL")
 @Repository
@@ -56,12 +62,25 @@ class TemplateDao {
         versionName: String,
         userId: String,
         template: String,
-        storeFlag: Boolean
+        storeFlag: Boolean,
+        version: Long? = null,
+        desc: String?
     ): Long {
         with(TTemplate.T_TEMPLATE) {
+            val currentTime = LocalDateTime.now()
             return dslContext.insertInto(
                 this,
-                PROJECT_ID, ID, TEMPLATE_NAME, VERSION_NAME, CREATOR, CREATED_TIME, TEMPLATE, STORE_FLAG
+                PROJECT_ID,
+                ID,
+                TEMPLATE_NAME,
+                VERSION_NAME,
+                CREATOR,
+                CREATED_TIME,
+                UPDATE_TIME,
+                TEMPLATE,
+                STORE_FLAG,
+                VERSION,
+                DESC
             )
                 .values(
                     projectId,
@@ -69,9 +88,12 @@ class TemplateDao {
                     templateName,
                     versionName,
                     userId,
-                    LocalDateTime.now(),
+                    currentTime,
+                    currentTime,
                     template,
-                    storeFlag
+                    storeFlag,
+                    version,
+                    desc
                 )
                 .returning(VERSION)
                 .fetchOne()!!.version
@@ -91,9 +113,12 @@ class TemplateDao {
         logoUrl: String?,
         srcTemplateId: String?,
         storeFlag: Boolean,
-        weight: Int
+        weight: Int,
+        version: Long? = null,
+        desc: String?
     ): Long {
         with(TTemplate.T_TEMPLATE) {
+            val currentTime = LocalDateTime.now()
             return dslContext.insertInto(
                 this,
                 PROJECT_ID,
@@ -102,13 +127,16 @@ class TemplateDao {
                 VERSION_NAME,
                 CREATOR,
                 CREATED_TIME,
+                UPDATE_TIME,
                 TEMPLATE,
                 TYPE,
                 CATEGORY,
                 LOGO_URL,
                 SRC_TEMPLATE_ID,
                 STORE_FLAG,
-                WEIGHT
+                WEIGHT,
+                VERSION,
+                DESC
             )
                 .values(
                     projectId,
@@ -116,17 +144,33 @@ class TemplateDao {
                     templateName,
                     versionName,
                     userId,
-                    LocalDateTime.now(),
+                    currentTime,
+                    currentTime,
                     template,
                     type,
                     category,
                     logoUrl,
                     srcTemplateId,
                     storeFlag,
-                    weight
+                    weight,
+                    version,
+                    desc
                 )
                 .returning(VERSION)
                 .fetchOne()!!.version
+        }
+    }
+
+    fun countTemplateVersionNum(
+        dslContext: DSLContext,
+        projectId: String,
+        templateId: String
+    ): Int {
+        with(TTemplate.T_TEMPLATE) {
+            return dslContext.select(DSL.countDistinct(VERSION_NAME))
+                .from(this)
+                .where(PROJECT_ID.eq(projectId).and(ID.eq(templateId)))
+                .fetchOne(0, Int::class.java)!!
         }
     }
 
@@ -147,9 +191,18 @@ class TemplateDao {
         }
     }
 
-    fun updateStoreFlag(dslContext: DSLContext, userId: String, templateId: String, storeFlag: Boolean): Int {
+    fun updateStoreFlag(
+        dslContext: DSLContext,
+        userId: String,
+        projectId: String,
+        templateId: String,
+        storeFlag: Boolean
+    ): Int {
         with(TTemplate.T_TEMPLATE) {
-            return dslContext.update(this).set(STORE_FLAG, storeFlag).where(ID.eq(templateId)).execute()
+            return dslContext.update(this)
+                .set(STORE_FLAG, storeFlag)
+                .where(ID.eq(templateId).and(PROJECT_ID.eq(projectId)))
+                .execute()
         }
     }
 
@@ -179,59 +232,62 @@ class TemplateDao {
 
     fun delete(
         dslContext: DSLContext,
+        projectId: String,
         templateId: String
     ): Int {
         with(TTemplate.T_TEMPLATE) {
             return dslContext.deleteFrom(this)
-                .where(ID.eq(templateId))
+                .where(ID.eq(templateId).and(PROJECT_ID.eq(projectId)))
                 .execute()
         }
     }
 
-    fun deleteVersion(
+    fun listSaveRecordVersions(
         dslContext: DSLContext,
+        projectId: String,
         templateId: String,
-        version: Long
+        versionName: String,
+        saveNum: Int = 2
+    ): Result<Record1<Long>>? {
+        with(TTemplate.T_TEMPLATE) {
+            return dslContext.select(VERSION)
+                .from(this)
+                .where(ID.eq(templateId))
+                .and(VERSION_NAME.eq(versionName))
+                .and(PROJECT_ID.eq(projectId))
+                .orderBy(UPDATE_TIME.desc(), VERSION.desc())
+                .limit(saveNum)
+                .fetch()
+        }
+    }
+
+    fun deleteSpecVersion(
+        dslContext: DSLContext,
+        projectId: String,
+        templateId: String,
+        versionName: String,
+        saveVersions: List<Long>
     ): Int {
         with(TTemplate.T_TEMPLATE) {
             return dslContext.deleteFrom(this)
                 .where(ID.eq(templateId))
-                .and(VERSION.eq(version))
+                .and(VERSION_NAME.eq(versionName))
+                .and(VERSION.notIn(saveVersions))
+                .and(PROJECT_ID.eq(projectId))
                 .execute()
-        }
-    }
-
-    /**
-     * 同一个版本名字可能对应多个版本
-     */
-    fun getTemplatesWithSameVersionName(
-        dslContext: DSLContext,
-        templateId: String,
-        version: Long
-    ): Result<TTemplateRecord> {
-        with(TTemplate.T_TEMPLATE) {
-            return dslContext.selectFrom(this)
-                .where(
-                    VERSION_NAME.eq(
-                        dslContext.select(VERSION_NAME)
-                            .from(this)
-                            .where(ID.eq(templateId))
-                            .and(VERSION.eq(version))
-                    )
-                )
-                .and(ID.eq(templateId))
-                .fetch()
         }
     }
 
     fun delete(
         dslContext: DSLContext,
+        projectId: String,
         templateId: String,
         versions: Set<Long>? = null,
         versionName: String? = null
     ): Int {
         with(TTemplate.T_TEMPLATE) {
             val conditions = mutableListOf<Condition>()
+            conditions.add(PROJECT_ID.eq(projectId))
             conditions.add(ID.eq(templateId))
             if (null != versions) {
                 conditions.add(VERSION.`in`(versions))
@@ -247,21 +303,61 @@ class TemplateDao {
 
     fun getTemplate(
         dslContext: DSLContext,
+        projectId: String? = null,
         version: Long
-    ): TTemplateRecord {
+    ): TTemplateRecord? {
         with(TTemplate.T_TEMPLATE) {
+            val conditions = mutableListOf<Condition>()
+            conditions.add(VERSION.eq(version))
+            if (!projectId.isNullOrBlank()) {
+                conditions.add(PROJECT_ID.eq(projectId))
+            }
             return dslContext.selectFrom(this)
-                .where(VERSION.eq(version))
-                .fetchOne() ?: throw ErrorCodeException(
-                errorCode = ProcessMessageCode.ERROR_TEMPLATE_NOT_EXISTS,
-                defaultMessage = "模板不存在"
-            )
+                .where(conditions)
+                .limit(1)
+                .fetchOne()
         }
     }
 
-    fun getSrcTemplateId(dslContext: DSLContext, templateId: String, type: String? = null): String? {
+    fun getTemplate(
+        dslContext: DSLContext,
+        templateId: String,
+        versionName: String? = null,
+        version: Long? = null
+    ): TTemplateRecord? {
+        with(TTemplate.T_TEMPLATE) {
+            val conditions = mutableListOf<Condition>()
+            conditions.add(ID.eq(templateId))
+            if (version != null) {
+                conditions.add(VERSION.eq(version))
+            }
+            if (!versionName.isNullOrBlank()) {
+                conditions.add(VERSION_NAME.eq(versionName))
+            }
+            return dslContext.selectFrom(this)
+                .where(conditions)
+                .orderBy(CREATED_TIME.desc(), VERSION.desc())
+                .limit(1)
+                .fetchOne()
+        }
+    }
+
+    fun getPublicTemplate(
+        dslContext: DSLContext
+    ): List<String> {
+        with(TTemplate.T_TEMPLATE) {
+            return dslContext.select(ID).from(this)
+                .where(PROJECT_ID.eq(""))
+                .and(TYPE.eq(TemplateType.PUBLIC.name))
+                .orderBy(CREATED_TIME.asc())
+                .fetch(0, String::class.java)
+        }
+    }
+
+    fun getSrcTemplateId(dslContext: DSLContext, projectId: String, templateId: String, type: String? = null): String? {
         return with(TTemplate.T_TEMPLATE) {
             val conditions = mutableListOf<Condition>()
+            conditions.add(PROJECT_ID.eq(projectId))
             conditions.add(ID.eq(templateId))
             if (type != null) {
                 conditions.add(TYPE.eq(type))
@@ -273,16 +369,23 @@ class TemplateDao {
         }
     }
 
-    fun listTemplate(
+    fun getTemplateVersionInfos(
         dslContext: DSLContext,
         projectId: String,
         templateId: String
-    ): Result<TTemplateRecord> {
+    ): Result<out Record>? {
         with(TTemplate.T_TEMPLATE) {
-            return dslContext.selectFrom(this)
+            return dslContext.select(
+                ID,
+                VERSION,
+                VERSION_NAME,
+                UPDATE_TIME,
+                CREATOR
+            )
+                .from(this)
                 .where(ID.eq(templateId))
                 .and(PROJECT_ID.eq(projectId))
-                .orderBy(VERSION.desc())
+                .orderBy(VERSION_NAME.desc(), UPDATE_TIME.desc(), VERSION.desc())
                 .fetch()
         }
     }
@@ -296,38 +399,6 @@ class TemplateDao {
         }
     }
 
-    /**
-     * 获取某一些项目下的模板总量
-     */
-    fun countTemplateByProjectIds(
-        dslContext: DSLContext,
-        projectIds: Set<String>,
-        includePublicFlag: Boolean?,
-        templateType: TemplateType?,
-        templateName: String?,
-        storeFlag: Boolean?
-    ): Int {
-        with(TTemplate.T_TEMPLATE) {
-            val conditions = mutableListOf<Condition>()
-            conditions.add(PROJECT_ID.`in`(projectIds))
-            if (templateType != null) {
-                conditions.add(TYPE.eq(templateType.name))
-            }
-            if (templateName != null) {
-                conditions.add(TEMPLATE_NAME.eq(templateName))
-            }
-            if (storeFlag != null) {
-                conditions.add(STORE_FLAG.eq(storeFlag))
-            }
-
-            return dslContext
-                .select(ID.countDistinct())
-                .from(this)
-                .where(conditions)
-                .fetchOne(0, Int::class.java)!!
-        }
-    }
-
     fun countTemplate(
         dslContext: DSLContext,
         projectId: String?,
@@ -337,30 +408,42 @@ class TemplateDao {
         storeFlag: Boolean?
     ): Int {
         with(TTemplate.T_TEMPLATE) {
-            val conditions = mutableListOf<Condition>()
-            if (projectId != null) {
-                if (includePublicFlag != null && includePublicFlag) {
-                    conditions.add(PROJECT_ID.eq(projectId).or(TYPE.eq(TemplateType.PUBLIC.name)))
-                } else {
-                    conditions.add(PROJECT_ID.eq(projectId))
-                }
+            val normalConditions = countTemplateBaseCondition(templateType, templateName, storeFlag)
+            if (!projectId.isNullOrBlank()) {
+                normalConditions.add(PROJECT_ID.eq(projectId))
             }
-            if (templateType != null) {
-                conditions.add(TYPE.eq(templateType.name))
-            }
-            if (templateName != null) {
-                conditions.add(TEMPLATE_NAME.eq(templateName))
-            }
-            if (storeFlag != null) {
-                conditions.add(STORE_FLAG.eq(storeFlag))
-            }
-
-            return dslContext
-                .select(ID.countDistinct())
+            var count = dslContext.select(DSL.countDistinct(ID))
                 .from(this)
-                .where(conditions)
+                .where(normalConditions)
                 .fetchOne(0, Int::class.java)!!
+            if (true == includePublicFlag) {
+                val publicConditions = countTemplateBaseCondition(templateType, templateName, storeFlag)
+                publicConditions.add((TYPE.eq(TemplateType.PUBLIC.name)))
+                count += dslContext.select(DSL.countDistinct(ID))
+                    .from(this)
+                    .where(publicConditions)
+                    .fetchOne(0, Int::class.java)!!
+            }
+            return count
         }
+    }
+
+    private fun TTemplate.countTemplateBaseCondition(
+        templateType: TemplateType?,
+        templateName: String?,
+        storeFlag: Boolean?
+    ): MutableList<Condition> {
+        val conditions = mutableListOf<Condition>()
+        if (templateType != null) {
+            conditions.add(TYPE.eq(templateType.name))
+        }
+        if (templateName != null) {
+            conditions.add(TEMPLATE_NAME.eq(templateName))
+        }
+        if (storeFlag != null) {
+            conditions.add(STORE_FLAG.eq(storeFlag))
+        }
+        return conditions
     }
 
     fun listTemplate(
@@ -370,17 +453,28 @@ class TemplateDao {
         templateType: TemplateType?,
         templateIdList: Collection<String>?,
         storeFlag: Boolean?,
-        page: Int?,
-        pageSize: Int?
+        orderBy: PTemplateOrderByType? = null,
+        sort: PTemplateSortType? = null,
+        offset: Int?,
+        limit: Int?,
+        queryModelFlag: Boolean = true
     ): Result<out Record>? {
-        val a = TTemplate.T_TEMPLATE.`as`("a")
+        if (projectId == null && templateIdList == null && limit == null)
+            throw ErrorCodeException(
+                defaultMessage = "list pipeline templates params error",
+                errorCode = FAIL_TO_LIST_TEMPLATE_PARAMS
+            )
+        val tTemplate = TTemplate.T_TEMPLATE
 
         val conditions = mutableListOf<Condition>()
         if (projectId != null) {
             if (includePublicFlag != null && includePublicFlag) {
-                conditions.add(a.PROJECT_ID.eq(projectId).or(a.TYPE.eq(TemplateType.PUBLIC.name)))
+                conditions.add(
+                    tTemplate.PROJECT_ID.eq(projectId)
+                        .or(tTemplate.PROJECT_ID.eq("").and(tTemplate.TYPE.eq(TemplateType.PUBLIC.name)))
+                )
             } else {
-                conditions.add(a.PROJECT_ID.eq(projectId))
+                conditions.add(tTemplate.PROJECT_ID.eq(projectId))
             }
         }
 
@@ -389,40 +483,13 @@ class TemplateDao {
             templateType = templateType,
             templateIdList = templateIdList,
             storeFlag = storeFlag,
-            page = page,
-            pageSize = pageSize,
-            a = a,
-            conditions = conditions
-        )
-    }
-
-    /**
-     * 批量获取某一些Project下的模板，用做统计
-     */
-    fun listTemplateByProjectIds(
-        dslContext: DSLContext,
-        projectIds: Set<String>,
-        includePublicFlag: Boolean? = null,
-        templateType: TemplateType? = null,
-        templateIdList: Collection<String>? = null,
-        storeFlag: Boolean? = null,
-        page: Int? = null,
-        pageSize: Int? = null
-    ): Result<out Record>? {
-        val a = TTemplate.T_TEMPLATE.`as`("a")
-
-        val conditions = mutableListOf<Condition>()
-        conditions.add(a.PROJECT_ID.`in`(projectIds))
-
-        return listTemplateByProjectCondition(
-            dslContext = dslContext,
-            templateType = templateType,
-            templateIdList = templateIdList,
-            storeFlag = storeFlag,
-            page = page,
-            pageSize = pageSize,
-            a = a,
-            conditions = conditions
+            orderBy = orderBy,
+            sort = sort,
+            offset = offset,
+            limit = limit,
+            tTemplate = tTemplate,
+            conditions = conditions,
+            queryModelFlag = queryModelFlag
         )
     }
 
@@ -431,100 +498,105 @@ class TemplateDao {
         templateType: TemplateType?,
         templateIdList: Collection<String>?,
         storeFlag: Boolean?,
-        page: Int?,
-        pageSize: Int?,
-        a: TTemplate,
-        conditions: MutableList<Condition>
+        orderBy: PTemplateOrderByType?,
+        sort: PTemplateSortType?,
+        offset: Int?,
+        limit: Int?,
+        tTemplate: TTemplate,
+        conditions: MutableList<Condition>,
+        queryModelFlag: Boolean = true
     ): Result<out Record>? {
         if (templateType != null) {
-            conditions.add(a.TYPE.eq(templateType.name))
+            conditions.add(tTemplate.TYPE.eq(templateType.name))
         }
-        if (templateIdList != null && templateIdList.isNotEmpty()) {
-            conditions.add(a.ID.`in`(templateIdList))
+        if (!templateIdList.isNullOrEmpty()) {
+            conditions.add(tTemplate.ID.`in`(templateIdList))
         }
         if (storeFlag != null) {
-            conditions.add(a.STORE_FLAG.eq(storeFlag))
+            conditions.add(tTemplate.STORE_FLAG.eq(storeFlag))
         }
-        val t = dslContext.select(a.ID.`as`("templateId"), a.VERSION.max().`as`("version")).from(a).where(conditions).groupBy(a.ID)
+        val t = dslContext.select(tTemplate.ID.`as`(KEY_ID), DSL.max(tTemplate.CREATED_TIME).`as`(KEY_CREATE_TIME))
+            .from(tTemplate)
+            .where(conditions)
+            .groupBy(tTemplate.ID)
 
-        val baseStep = dslContext.select(
-            a.ID.`as`("templateId"),
-            a.TEMPLATE_NAME.`as`("name"),
-            a.VERSION.`as`("version"),
-            a.VERSION_NAME.`as`("versionName"),
-            a.TYPE.`as`("templateType"),
-            a.LOGO_URL.`as`("logoUrl"),
-            a.STORE_FLAG.`as`("storeFlag"),
-            a.CREATOR.`as`("creator"),
-            a.CREATED_TIME.`as`("createdTime"),
-            a.SRC_TEMPLATE_ID.`as`("srcTemplateId"),
-            a.TEMPLATE.`as`("template"),
-            a.CATEGORY.`as`("category"),
-            a.PROJECT_ID.`as`("projectId")
+        val baseSelect = dslContext.select(
+            tTemplate.ID,
+            tTemplate.TEMPLATE_NAME,
+            tTemplate.VERSION,
+            tTemplate.VERSION_NAME,
+            tTemplate.TYPE,
+            tTemplate.LOGO_URL,
+            tTemplate.STORE_FLAG,
+            tTemplate.CREATOR,
+            tTemplate.CREATED_TIME,
+            tTemplate.UPDATE_TIME,
+            tTemplate.SRC_TEMPLATE_ID,
+            tTemplate.CATEGORY,
+            tTemplate.PROJECT_ID,
+            tTemplate.DESC
         )
-            .from(a)
+        if (queryModelFlag) {
+            // 查询模板model内容
+            baseSelect.select(tTemplate.TEMPLATE)
+        }
+
+        val baseStep = baseSelect.from(tTemplate)
             .join(t)
             .on(
-                a.ID.eq(t.field("templateId", String::class.java)).and(
-                    a.VERSION.eq(
+                tTemplate.ID.eq(t.field(KEY_ID, String::class.java)).and(
+                    tTemplate.CREATED_TIME.eq(
                         t.field(
-                            "version",
-                            Long::class.java
+                            KEY_CREATE_TIME,
+                            LocalDateTime::class.java
                         )
                     )
                 )
             )
-            .orderBy(a.WEIGHT.desc(), a.CREATED_TIME.desc())
+            .where(conditions)
 
-        return if (null != page && null != pageSize) {
-            baseStep.limit((page - 1) * pageSize, pageSize).fetch()
+        if (orderBy != null) {
+            val orderByField = when (orderBy) {
+                PTemplateOrderByType.NAME -> {
+                    tTemplate.TEMPLATE_NAME.let {
+                        if (sort == null || sort == PTemplateSortType.ASC) {
+                            it.asc()
+                        } else {
+                            it.desc()
+                        }
+                    }
+                }
+
+                PTemplateOrderByType.CREATOR -> {
+                    tTemplate.CREATOR.let {
+                        if (sort == null || sort == PTemplateSortType.ASC) {
+                            it.asc()
+                        } else {
+                            it.desc()
+                        }
+                    }
+                }
+
+                PTemplateOrderByType.CREATE_TIME -> {
+                    tTemplate.CREATED_TIME.let {
+                        if (sort == null || sort == PTemplateSortType.DESC) {
+                            it.desc()
+                        } else {
+                            it.asc()
+                        }
+                    }
+                }
+            }
+            baseStep.orderBy(tTemplate.WEIGHT.desc(), orderByField, tTemplate.VERSION.desc())
         } else {
-            baseStep.fetch()
+            baseStep.orderBy(tTemplate.WEIGHT.desc(), tTemplate.CREATED_TIME.desc(), tTemplate.VERSION.desc())
         }
-    }
 
-    fun listTemplateByIds(
-        dslContext: DSLContext,
-        templateList: List<String>
-    ): Result<TTemplateRecord> {
-        with(TTemplate.T_TEMPLATE) {
-            return dslContext.selectFrom(this)
-                .where(ID.`in`(templateList))
-                .orderBy(VERSION.desc())
-                .fetch()
+        return if (null != offset && null != limit) {
+            baseStep.limit(offset, limit).skipCheck().fetch()
+        } else {
+            baseStep.skipCheck().fetch()
         }
-    }
-
-    /**
-     * 批量获取模版的最新版本
-     */
-    fun listLatestTemplateByIds(
-        dslContext: DSLContext,
-        templateList: List<String>
-    ): Result<out Record> {
-        val a = TTemplate.T_TEMPLATE.`as`("a")
-        val b = dslContext.select(
-            a.ID,
-            a.VERSION.max().`as`("VERSION")
-        ).from(a).where(a.ID.`in`(templateList)).groupBy(a.ID).asTable("b")
-
-        return dslContext.select(
-            a.VERSION,
-            a.ID,
-            a.TEMPLATE_NAME,
-            a.PROJECT_ID,
-            a.VERSION_NAME,
-            a.CREATOR,
-            a.CREATED_TIME,
-            a.TEMPLATE,
-            a.TYPE,
-            a.LOGO_URL
-        ).from(a)
-            .innerJoin(b)
-            .on(a.ID.eq(b.field("ID", String::class.java)))
-            .where(a.VERSION.eq(b.field("VERSION", Long::class.java)))
-            .and(a.ID.`in`(templateList))
-            .fetch()
     }
 
     fun getLatestTemplate(
@@ -536,9 +608,11 @@ class TemplateDao {
             return dslContext.selectFrom(this)
                 .where(PROJECT_ID.eq(projectId))
                 .and(ID.eq(templateId))
-                .orderBy(VERSION.desc())
+                .orderBy(CREATED_TIME.desc(), VERSION.desc())
                 .limit(1)
-                .fetchOne() ?: throw NotFoundException("流水线模板不存在")
+                .fetchOne() ?: throw ErrorCodeException(
+                errorCode = ProcessMessageCode.ERROR_TEMPLATE_NOT_EXISTS
+            )
         }
     }
 
@@ -549,9 +623,11 @@ class TemplateDao {
         with(TTemplate.T_TEMPLATE) {
             return dslContext.selectFrom(this)
                 .where(ID.eq(templateId))
-                .orderBy(VERSION.desc())
+                .orderBy(CREATED_TIME.desc(), VERSION.desc())
                 .limit(1)
-                .fetchOne() ?: throw NotFoundException("流水线模板不存在")
+                .fetchOne() ?: throw ErrorCodeException(
+                errorCode = ProcessMessageCode.ERROR_TEMPLATE_NOT_EXISTS
+            )
         }
     }
 
@@ -569,14 +645,14 @@ class TemplateDao {
     }
 
     /**
-     * 获取关联的模版列表
+     * 获取关联的模版ID列表
      */
-    fun listTemplateReference(
+    fun listTemplateReferenceId(
         dslContext: DSLContext,
         templateId: String
-    ): Result<TTemplateRecord> {
+    ): Result<Record1<String>> {
         with(TTemplate.T_TEMPLATE) {
-            return dslContext.selectFrom(this)
+            return dslContext.selectDistinct(ID).from(this)
                 .where(TYPE.eq(TemplateType.CONSTRAINT.name))
                 .and(SRC_TEMPLATE_ID.eq(templateId))
                 .fetch()
@@ -597,35 +673,20 @@ class TemplateDao {
         }
     }
 
-    /**
-     * 统计用户自定义模板总数
-     * 统计规则：template字段不为NULL
-     */
-    fun getCustomizedTemplate(
+    fun updateNameAndDescById(
         dslContext: DSLContext,
-        projectIds: Set<String>
-    ): Result<Record1<String>> {
+        projectId: String,
+        templateId: String,
+        name: String?,
+        desc: String?
+    ): Int {
         with(TTemplate.T_TEMPLATE) {
-            return dslContext.selectDistinct(ID).from(this)
-                .where(PROJECT_ID.`in`(projectIds))
-                .and(TEMPLATE.isNotNull)
-                .fetch()
-        }
-    }
-
-    /**
-     * 统计被复制使用的原始模板总数
-     * 统计规则：template为NULL的模板的src_template去重
-     */
-    fun getOriginalTemplate(
-        dslContext: DSLContext,
-        projectIds: Set<String>
-    ): Result<Record1<String>> {
-        with(TTemplate.T_TEMPLATE) {
-            return dslContext.selectDistinct(SRC_TEMPLATE_ID).from(this)
-                .where(PROJECT_ID.`in`(projectIds))
-                .and(TEMPLATE.isNull)
-                .fetch()
+            val dsl = dslContext.update(this)
+                .set(DESC, desc)
+            if (!name.isNullOrBlank()) {
+                dsl.set(TEMPLATE_NAME, name)
+            }
+            return dsl.where(PROJECT_ID.eq(projectId)).and(ID.eq(templateId)).execute()
         }
     }
 }

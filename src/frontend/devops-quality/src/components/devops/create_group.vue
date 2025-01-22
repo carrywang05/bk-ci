@@ -1,44 +1,65 @@
 <template>
-    <bk-dialog v-model="nodeSelectConf.isShow"
+    <bk-dialog
+        v-model="nodeSelectConf.isShow"
         :width="'640'"
         :ext-cls="'experience-group-wrapper'"
         :close-icon="nodeSelectConf.closeIcon"
-        :show-footer="nodeSelectConf.hasFooter">
-        <div v-if="nodeSelectConf.isShow"
+        :show-footer="nodeSelectConf.hasFooter"
+    >
+        <div
+            v-if="nodeSelectConf.isShow"
             v-bkloading="{
                 isLoading: loading.isLoading,
                 title: loading.title
-            }">
+            }"
+        >
             <div class="experience-group-header">
                 <div class="title">{{ nodeSelectConf.title }}</div>
             </div>
 
-            <form class="bk-form create-group-form" id="create-group-form">
+            <form
+                class="bk-form create-group-form"
+                id="create-group-form"
+            >
                 <div class="bk-form-wrapper">
-                    <bk-form :label-width="100" :model="createGroupForm">
-                        <devops-form-item label="通知组名称" :required="true" :property="'name'"
+                    <bk-form
+                        :label-width="100"
+                        :model="createGroupForm"
+                    >
+                        <devops-form-item
+                            :label="$t('quality.通知组名称')"
+                            :required="true"
+                            :property="'name'"
                             :is-error="errors.has('groupName')"
-                            :error-msg="errors.first('groupName')">
+                            :error-msg="errors.first('groupName')"
+                        >
                             <bk-input
                                 class="group-name-input"
-                                placeholder="最长不超过10个汉字"
+                                :placeholder="$t('quality.最长不超过10个汉字')"
                                 name="groupName"
                                 v-model="createGroupForm.name"
                                 v-validate="{
                                     required: true,
                                     max: 10
-                                }">
+                                }"
+                            >
                             </bk-input>
                         </devops-form-item>
-                        <bk-form-item label="通知人员：" :property="'internal_list'">
+                        <bk-form-item
+                            :label="$t('quality.通知人员：')"
+                            :property="'internal_list'"
+                        >
                             <user-input
                                 :handle-change="onChange"
                                 name="innerList"
                                 :value="createGroupForm.internal_list"
-                                placeholder="请输入通知人员"
+                                :placeholder="$t('quality.请输入通知人员')"
                             ></user-input>
                         </bk-form-item>
-                        <bk-form-item label="通知人员：" :property="'desc'">
+                        <bk-form-item
+                            :label="$t('quality.描述：')"
+                            :property="'desc'"
+                        >
                             <bk-input
                                 class="group-desc-textarea"
                                 type="textarea"
@@ -51,8 +72,13 @@
                 </div>
             </form>
             <div class="footer">
-                <bk-button theme="primary" @click.native="confirm">确认</bk-button>
-                <bk-button @click="cancelFn">取消</bk-button>
+                <bk-button
+                    theme="primary"
+                    @click.native="confirm"
+                >
+                    {{ $t('quality.确认') }}
+                </bk-button>
+                <bk-button @click="cancelFn">{{ $t('quality.取消') }}</bk-button>
             </div>
         </div>
     </bk-dialog>
@@ -83,7 +109,7 @@
         data () {
             return {
                 isDropdownShow: false,
-                placeholder: '仅填写项目组内的人员有效',
+                placeholder: this.$t('quality.仅填写项目组内的人员有效'),
                 userGroupList: []
             }
         },
@@ -124,7 +150,7 @@
 
                     this.userGroupList.splice(0, this.userGroupList.length)
                     if (res) {
-                        res.map(item => {
+                        res.forEach(item => {
                             this.userGroupList.push(item)
                         })
                     }

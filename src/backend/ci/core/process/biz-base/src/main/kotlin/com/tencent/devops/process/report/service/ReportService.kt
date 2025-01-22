@@ -28,6 +28,8 @@
 package com.tencent.devops.process.report.service
 
 import com.tencent.devops.common.api.exception.ErrorCodeException
+import com.tencent.devops.common.archive.pojo.ReportListDTO
+import com.tencent.devops.common.archive.pojo.TaskReport
 import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.notify.enums.EnumEmailFormat
 import com.tencent.devops.common.service.utils.HomeHostUtil
@@ -36,12 +38,12 @@ import com.tencent.devops.notify.api.service.ServiceNotifyResource
 import com.tencent.devops.notify.pojo.EmailNotifyMessage
 import com.tencent.devops.process.constant.ProcessMessageCode
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
+import com.tencent.devops.process.engine.service.PipelineTaskService
 import com.tencent.devops.process.pojo.Report
-import com.tencent.devops.process.pojo.ReportListDTO
-import com.tencent.devops.process.pojo.TaskReport
 import com.tencent.devops.process.pojo.report.ReportEmail
 import com.tencent.devops.process.pojo.report.enums.ReportTypeEnum
 import com.tencent.devops.process.report.dao.ReportDao
+import com.tencent.devops.project.api.service.ServiceAllocIdResource
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -55,6 +57,7 @@ class ReportService @Autowired constructor(
     private val dslContext: DSLContext,
     private val reportDao: ReportDao,
     private val client: Client,
+    private val pipelineTaskService: PipelineTaskService,
     private val pipelineRuntimeService: PipelineRuntimeService
 ) {
     private val logger = LoggerFactory.getLogger(ReportService::class.java)
@@ -69,6 +72,12 @@ class ReportService @Autowired constructor(
         reportType: ReportTypeEnum,
         reportEmail: ReportEmail? = null
     ) {
+        val taskInfo = reportDao.getAtomInfo(
+                dslContext = dslContext,
+                buildId = buildId,
+                taskId = taskId
+        )
+
         val indexFilePath = if (reportType == ReportTypeEnum.INTERNAL) {
             Paths.get(indexFile).normalize().toString()
         } else {
@@ -95,7 +104,10 @@ class ReportService @Autowired constructor(
                 elementId = taskId,
                 indexFile = indexFilePath,
                 name = name,
-                type = reportType.name
+                type = reportType.name,
+                atomCode = taskInfo?.value1() ?: "",
+                taskName = taskInfo?.value2() ?: "",
+                id = client.get(ServiceAllocIdResource::class).generateSegmentId("REPORT").data
             )
 //        } else {
 //            reportDao.update(
@@ -138,15 +150,15 @@ class ReportService @Autowired constructor(
     }
 
     fun listContainTask(reportListDTO: ReportListDTO): List<TaskReport> {
-
+        val projectId = reportListDTO.projectId
         val reportRecordList = reportDao.list(
             dslContext = dslContext,
-            projectId = reportListDTO.projectId,
+            projectId = projectId,
             pipelineId = reportListDTO.pipelineId,
             buildId = reportListDTO.buildId
         )
         return reportRecordList.map {
-            val taskRecord = pipelineRuntimeService.getBuildTask(reportListDTO.buildId, it.elementId)
+            val taskRecord = pipelineTaskService.getBuildTask(projectId, reportListDTO.buildId, it.elementId)
             val atomCode = taskRecord?.atomCode ?: ""
             val atomName = taskRecord?.taskName ?: ""
             if (it.type == ReportTypeEnum.INTERNAL.name) {
@@ -163,7 +175,8 @@ class ReportService @Autowired constructor(
                     type = it.type,
                     taskId = it.elementId,
                     atomCode = atomCode,
-                    atomName = atomName
+                    atomName = atomName,
+                    createTime = it.createTime
                 )
             } else {
                 TaskReport(
@@ -172,18 +185,18 @@ class ReportService @Autowired constructor(
                     type = it.type,
                     taskId = it.elementId,
                     atomCode = atomCode,
-                    atomName = atomName
+                    atomName = atomName,
+                    createTime = it.createTime
                 )
             }
         }
     }
 
-    fun getRootUrl(buildId: String, taskId: String): String {
-        val buildInfo = pipelineRuntimeService.getBuildInfo(buildId)
+    fun getRootUrl(projectId: String, buildId: String, taskId: String): String {
+        val buildInfo = pipelineRuntimeService.getBuildInfo(projectId, buildId)
             ?: throw ErrorCodeException(
                 statusCode = Response.Status.NOT_FOUND.statusCode,
                 errorCode = ProcessMessageCode.ERROR_NO_BUILD_EXISTS_BY_ID,
-                defaultMessage = "构建任务${buildId}不存在",
                 params = arrayOf(buildId)
             )
         return getRootUrl(
@@ -214,5 +227,25 @@ class ReportService @Autowired constructor(
         } else {
             Report(info.name, info.indexFile, info.type)
         }
+    }
+
+    fun listNoApiHost(userId: String, projectId: String, pipelineId: String, buildId: String): List<Report> {
+        val reportRecordList = reportDao.list(dslContext, projectId, pipelineId, buildId)
+
+        val reportList = mutableListOf<Report>()
+        reportRecordList.forEach {
+            if (it.type == ReportTypeEnum.INTERNAL.name) {
+                val indexFile = Paths.get(it.indexFile).normalize().toString()
+                val urlPrefix = getRootUrlNoApiHost(projectId, pipelineId, buildId, it.elementId)
+                reportList.add(Report(it.name, "$urlPrefix$indexFile", it.type))
+            } else {
+                reportList.add(Report(it.name, it.indexFile, it.type))
+            }
+        }
+        return reportList
+    }
+
+    private fun getRootUrlNoApiHost(projectId: String, pipelineId: String, buildId: String, taskId: String): String {
+        return "/$projectId/report/$pipelineId/$buildId/$taskId/"
     }
 }

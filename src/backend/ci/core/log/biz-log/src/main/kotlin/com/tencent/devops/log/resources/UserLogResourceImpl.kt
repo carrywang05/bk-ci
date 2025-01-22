@@ -29,11 +29,16 @@ package com.tencent.devops.log.resources
 
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.log.pojo.QueryLogStatus
+import com.tencent.devops.common.log.pojo.QueryLogs
+import com.tencent.devops.common.log.pojo.enums.LogType
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.log.api.UserLogResource
-import com.tencent.devops.common.log.pojo.QueryLogs
 import com.tencent.devops.log.service.BuildLogQueryService
+import io.micrometer.core.annotation.Timed
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import javax.ws.rs.core.Response
 
 /**
@@ -42,31 +47,49 @@ import javax.ws.rs.core.Response
  */
 @RestResource
 class UserLogResourceImpl @Autowired constructor(
-    private val buildLogQueryService: BuildLogQueryService
+    private val buildLogQueryService: BuildLogQueryService,
+    private val meterRegistry: MeterRegistry
 ) : UserLogResource {
 
+    companion object {
+        private const val defaultNum = 100
+    }
+
+    @Value("\${spring.application.name:#{null}}")
+    private val applicationName: String? = null
+
+    @Timed
     override fun getInitLogs(
         userId: String,
         projectId: String,
         pipelineId: String,
         buildId: String,
         debug: Boolean?,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
         jobId: String?,
-        executeCount: Int?
+        executeCount: Int?,
+        archiveFlag: Boolean?
     ): Result<QueryLogs> {
-        return buildLogQueryService.getInitLogs(
+        val initLogs = buildLogQueryService.getInitLogs(
             userId = userId,
             projectId = projectId,
             pipelineId = pipelineId,
             buildId = buildId,
             debug = debug,
+            logType = logType,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null,
+            archiveFlag = archiveFlag,
+            reverse = false
         )
+        recordListLogCount(initLogs.data?.logs?.size ?: 0)
+        return initLogs
     }
 
     override fun getMoreLogs(
@@ -75,6 +98,7 @@ class UserLogResourceImpl @Autowired constructor(
         pipelineId: String,
         buildId: String,
         debug: Boolean?,
+        logType: LogType?,
         num: Int?,
         fromStart: Boolean?,
         start: Long,
@@ -82,7 +106,8 @@ class UserLogResourceImpl @Autowired constructor(
         tag: String?,
         subTag: String?,
         jobId: String?,
-        executeCount: Int?
+        executeCount: Int?,
+        archiveFlag: Boolean?
     ): Result<QueryLogs> {
         return buildLogQueryService.getMoreLogs(
             userId = userId,
@@ -90,17 +115,22 @@ class UserLogResourceImpl @Autowired constructor(
             pipelineId = pipelineId,
             buildId = buildId,
             debug = debug,
-            num = num,
+            logType = logType,
+            num = num ?: defaultNum,
             fromStart = fromStart,
             start = start,
             end = end,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null,
+            archiveFlag = archiveFlag
         )
     }
 
+    @Timed
     override fun getAfterLogs(
         userId: String,
         projectId: String,
@@ -108,23 +138,32 @@ class UserLogResourceImpl @Autowired constructor(
         buildId: String,
         start: Long,
         debug: Boolean?,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
         jobId: String?,
-        executeCount: Int?
+        executeCount: Int?,
+        archiveFlag: Boolean?
     ): Result<QueryLogs> {
-        return buildLogQueryService.getAfterLogs(
+        val afterLogs = buildLogQueryService.getAfterLogs(
             userId = userId,
             projectId = projectId,
             pipelineId = pipelineId,
             buildId = buildId,
             start = start,
             debug = debug,
+            logType = logType,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null,
+            archiveFlag = archiveFlag
         )
+        recordListLogCount(afterLogs.data?.logs?.size ?: 0)
+
+        return afterLogs
     }
 
     override fun downloadLogs(
@@ -136,7 +175,8 @@ class UserLogResourceImpl @Autowired constructor(
         subTag: String?,
         jobId: String?,
         executeCount: Int?,
-        fileName: String?
+        fileName: String?,
+        archiveFlag: Boolean?
     ): Response {
         return buildLogQueryService.downloadLogs(
             userId = userId,
@@ -145,9 +185,12 @@ class UserLogResourceImpl @Autowired constructor(
             buildId = buildId,
             tag = tag ?: "",
             subTag = subTag ?: "",
-            jobId = jobId,
+            containerHashId = jobId,
             executeCount = executeCount,
-            fileName = fileName
+            fileName = fileName,
+            jobId = null,
+            stepId = null,
+            archiveFlag = archiveFlag
         )
     }
 
@@ -157,7 +200,8 @@ class UserLogResourceImpl @Autowired constructor(
         pipelineId: String,
         buildId: String,
         tag: String,
-        executeCount: Int?
+        executeCount: Int?,
+        archiveFlag: Boolean?
     ): Result<QueryLogStatus> {
         return buildLogQueryService.getLogMode(
             userId = userId,
@@ -165,7 +209,20 @@ class UserLogResourceImpl @Autowired constructor(
             pipelineId = pipelineId,
             buildId = buildId,
             tag = tag,
-            executeCount = executeCount
+            executeCount = executeCount,
+            stepId = null,
+            archiveFlag = archiveFlag
         )
+    }
+
+    /**
+     * 记录日志列表函数
+     */
+    private fun recordListLogCount(count: Number) {
+        Counter
+            .builder("list_log_count")
+            .tag("application", applicationName ?: "")
+            .register(meterRegistry)
+            .increment(count.toDouble())
     }
 }

@@ -1,14 +1,25 @@
 <template>
     <article class="g-store-main">
-        <bread-crumbs :bread-crumbs="navList" :type="type"></bread-crumbs>
+        <bread-crumbs
+            :bread-crumbs="navList"
+            :type="type"
+        ></bread-crumbs>
 
-        <transition-tab :panels="panels"
+        <transition-tab
+            :panels="panels"
             @tab-change="tabChange"
             @child-tab-change="childTabChange"
         ></transition-tab>
 
-        <main v-bkloading="{ isLoading }" class="g-store-body">
-            <router-view v-if="Object.keys(detail).length > 0 && !isLoading" class="g-store-route" v-bind="routekey"></router-view>
+        <main
+            v-bkloading="{ isLoading }"
+            class="g-store-body"
+        >
+            <router-view
+                v-if="Object.keys(detail).length > 0 && !isLoading"
+                class="g-store-route"
+                v-bind="routekey"
+            ></router-view>
         </main>
     </article>
 </template>
@@ -39,30 +50,36 @@
                         { label: this.$t('store.发布管理'), name: 'release', children: [{ label: this.$t('store.版本管理'), name: 'version' }], showChildTab: true },
                         { label: this.$t('store.协作审批'), name: 'approval' },
                         { label: this.$t('store.基本信息'), name: 'detail', children: [{ name: 'show' }, { name: 'edit' }], showChildTab: false },
-                        { label: this.$t('store.基本设置'),
-                          name: 'setting',
-                          children: [
-                              { label: this.$t('store.成员管理'), name: 'member' },
-                              { label: this.$t('store.私有配置'), name: 'private' },
-                              { label: this.$t('store.apiSettingManage'), name: 'api' }
-                          ],
-                          showChildTab: true }
+                        {
+                            label: this.$t('store.基本设置'),
+                            name: 'setting',
+                            children: [
+                                { label: this.$t('store.成员管理'), name: 'member' },
+                                { label: this.$t('store.私有配置'), name: 'private' },
+                                { label: this.$t('store.apiSettingManage'), name: 'api' }
+                            ],
+                            showChildTab: true
+                        }
                     ],
                     image: [
                         { label: this.$t('store.发布管理'), name: 'release', children: [{ label: this.$t('store.版本管理'), name: 'version' }], showChildTab: true },
                         { label: this.$t('store.基本信息'), name: 'detail', children: [{ name: 'show' }, { name: 'edit' }], showChildTab: false },
-                        { label: this.$t('store.基本设置'),
-                          name: 'setting',
-                          children: [
-                              { label: this.$t('store.成员管理'), name: 'member' }
-                          ],
-                          showChildTab: true }
+                        {
+                            label: this.$t('store.基本设置'),
+                            name: 'setting',
+                            children: [
+                                { label: this.$t('store.成员管理'), name: 'member' }
+                            ],
+                            showChildTab: true
+                        }
                     ],
                     template: [
-                        { label: this.$t('store.基本设置'),
-                          name: 'setting',
-                          children: [],
-                          showChildTab: true }
+                        {
+                            label: this.$t('store.基本设置'),
+                            name: 'setting',
+                            children: [],
+                            showChildTab: true
+                        }
                     ]
                 }
             }
@@ -70,7 +87,7 @@
 
         computed: {
             ...mapGetters('store', {
-                'detail': 'getDetail'
+                detail: 'getDetail'
             }),
 
             storeType () {

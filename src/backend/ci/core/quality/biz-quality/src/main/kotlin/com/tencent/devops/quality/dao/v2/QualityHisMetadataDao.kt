@@ -37,37 +37,6 @@ import org.springframework.stereotype.Repository
 
 @Repository@Suppress("ALL")
 class QualityHisMetadataDao {
-
-    fun saveHisOriginMetadata(
-        dslContext: DSLContext,
-        projectId: String,
-        pipelineId: String,
-        buildId: String,
-        buildNo: String,
-        callbackStr: String
-    ) {
-        with(TQualityHisOriginMetadata.T_QUALITY_HIS_ORIGIN_METADATA) {
-            dslContext.insertInto(
-                this,
-                PROJECT_ID,
-                PIPELINE_ID,
-                BUILD_ID,
-                BUILD_NO,
-                RESULT_DATA,
-                CREATE_TIME
-            )
-                .values(
-                    projectId,
-                    pipelineId,
-                    buildId,
-                    buildNo,
-                    callbackStr,
-                    System.currentTimeMillis()
-                )
-                .execute()
-        }
-    }
-
     fun batchSaveHisDetailMetadata(
         dslContext: DSLContext,
         projectId: String,
@@ -94,7 +63,9 @@ class QualityHisMetadataDao {
                     this.BUILD_ID,
                     this.BUILD_NO,
                     this.EXTRA,
-                    this.CREATE_TIME
+                    this.CREATE_TIME,
+                    this.TASK_ID,
+                    this.TASK_NAME
                 )
                     .values(
                         it.enName,
@@ -109,7 +80,9 @@ class QualityHisMetadataDao {
                         buildId,
                         buildNo,
                         it.extra,
-                        System.currentTimeMillis()
+                        System.currentTimeMillis(),
+                        it.taskId,
+                        it.taskName
                     )
                     .onDuplicateKeyUpdate()
                     .set(DATA_TYPE, it.type.name)
@@ -119,6 +92,7 @@ class QualityHisMetadataDao {
                     .set(ELEMENT_DETAIL, it.detail)
                     .set(EXTRA, it.extra)
                     .set(CREATE_TIME, System.currentTimeMillis())
+                    .set(TASK_NAME, it.taskName)
             }
             dslContext.batch(insertCommand).execute()
         }
@@ -128,6 +102,7 @@ class QualityHisMetadataDao {
         return with(TQualityHisDetailMetadata.T_QUALITY_HIS_DETAIL_METADATA) {
             dslContext.selectFrom(this)
                 .where(BUILD_ID.eq(buildId))
+                .orderBy(CREATE_TIME.desc())
                 .fetch()
         }
     }
@@ -152,13 +127,11 @@ class QualityHisMetadataDao {
     fun getHisMetadataByCreateTime(
         dslContext: DSLContext,
         time: Long,
-        offset: Long,
         pageSize: Int = 10000
     ): Result<TQualityHisDetailMetadataRecord> {
         return with(TQualityHisDetailMetadata.T_QUALITY_HIS_DETAIL_METADATA) {
             dslContext.selectFrom(this)
                 .where(CREATE_TIME.lt(time).or(CREATE_TIME.isNull))
-                .offset(offset)
                 .limit(pageSize)
                 .fetch()
         }
@@ -169,6 +142,14 @@ class QualityHisMetadataDao {
             dslContext.deleteFrom(this)
                 .where(CREATE_TIME.lt(time).or(CREATE_TIME.isNull))
                 .limit(pageSize)
+                .execute()
+        }
+    }
+
+    fun deleteHisMetaByBuildId(dslContext: DSLContext, buildId: String): Int {
+        return with(TQualityHisDetailMetadata.T_QUALITY_HIS_DETAIL_METADATA) {
+            dslContext.deleteFrom(this)
+                .where(BUILD_ID.eq(buildId))
                 .execute()
         }
     }

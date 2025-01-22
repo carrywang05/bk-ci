@@ -27,6 +27,7 @@
 
 package com.tencent.devops.plugin.worker.task.archive
 
+import com.tencent.bkrepo.repository.pojo.token.TokenType
 import com.tencent.devops.artifactory.pojo.enums.FileTypeEnum
 import com.tencent.devops.common.api.exception.ParamBlankException
 import com.tencent.devops.common.api.exception.TaskExecuteException
@@ -39,11 +40,10 @@ import com.tencent.devops.process.pojo.BuildTask
 import com.tencent.devops.process.pojo.BuildVariables
 import com.tencent.devops.process.utils.PIPELINE_START_USER_ID
 import com.tencent.devops.worker.common.api.ApiFactory
+import com.tencent.devops.worker.common.api.ArtifactApiFactory
 import com.tencent.devops.worker.common.api.archive.ArchiveSDKApi
-import com.tencent.devops.worker.common.api.archive.pojo.TokenType
 import com.tencent.devops.worker.common.api.process.BuildSDKApi
 import com.tencent.devops.worker.common.logger.LoggerService
-import com.tencent.devops.worker.common.service.RepoServiceFactory
 import com.tencent.devops.worker.common.task.ITask
 import com.tencent.devops.worker.common.task.TaskClassType
 import com.tencent.devops.worker.common.utils.TaskUtil
@@ -59,24 +59,28 @@ class BuildArchiveGetTask : ITask() {
         private val logger = LoggerFactory.getLogger(BuildArchiveGetTask::class.java)
     }
 
-    private val archiveGetResourceApi = ApiFactory.create(ArchiveSDKApi::class)
+    private val archiveGetResourceApi = ArtifactApiFactory.create(ArchiveSDKApi::class)
     private val buildApi = ApiFactory.create(BuildSDKApi::class)
 
     @Suppress("ComplexMethod", "MagicNumber")
     override fun execute(buildTask: BuildTask, buildVariables: BuildVariables, workspace: File) {
         val taskParams = buildTask.params ?: mapOf()
         val pipelineId = taskParams["pipelineId"] ?: throw ParamBlankException("pipelineId is null")
-        val buildNo = taskParams["buildNo"] ?: "-1"
-        val buildId = getBuildId(pipelineId, buildVariables, buildNo).id
+        val buildNo = if (taskParams["buildNo"].isNullOrBlank()) "-1" else taskParams["buildNo"]!!
+        val buildId = if (pipelineId == buildVariables.pipelineId && buildNo == "-1") {
+            buildVariables.buildId
+        } else {
+            getBuildId(pipelineId, buildVariables, buildNo).id
+        }
         val destPath = File(workspace, taskParams["destPath"] ?: ".")
         val srcPaths = taskParams["srcPaths"] ?: throw ParamBlankException("srcPaths can not be null")
         val notFoundContinue = taskParams["notFoundContinue"] ?: "false"
         var count = 0
 
         LoggerService.addNormalLine("archive get notFoundContinue: $notFoundContinue")
-        srcPaths.split(",").map {
+        val files = srcPaths.split(",").map {
             it.trim().removePrefix("/").removePrefix("./")
-        }.forEach { srcPath ->
+        }.filter { it.isNotBlank() }.flatMap { srcPath ->
 
             logger.info("[$buildId]|pipelineId=$pipelineId|srcPath=$srcPath")
             val fileList = archiveGetResourceApi.getFileDownloadUrls(
@@ -88,7 +92,7 @@ class BuildArchiveGetTask : ITask() {
                 customFilePath = srcPath
             )
 
-            fileList.forEach { fileUrl ->
+            fileList.map { fileUrl ->
                 val decodeUrl = URLDecoder.decode(fileUrl, "UTF-8")
                 val lastFx = decodeUrl.lastIndexOf("/")
                 val file = if (lastFx > 0) {
@@ -97,29 +101,32 @@ class BuildArchiveGetTask : ITask() {
                     File(destPath, decodeUrl)
                 }
                 LoggerService.addNormalLine("find the file($fileUrl) in repo!")
-                val token = RepoServiceFactory.getInstance().getRepoToken(
-                    userId = buildVariables.variables[PIPELINE_START_USER_ID] ?: "",
-                    projectId = buildVariables.projectId,
-                    repoName = "pipeline",
-                    path = fileUrl,
-                    type = TokenType.DOWNLOAD,
-                    expireSeconds = TaskUtil.getTimeOut(buildTask).times(60)
-                )
-                archiveGetResourceApi.downloadPipelineFile(
-                    userId = buildVariables.variables[PIPELINE_START_USER_ID] ?: "",
-                    projectId = buildVariables.projectId,
-                    pipelineId = pipelineId,
-                    buildId = buildId,
-                    uri = fileUrl,
-                    destPath = file,
-                    isVmBuildEnv = TaskUtil.isVmBuildEnv(buildVariables.containerType),
-                    token = token
-                )
-                count++
+                fileUrl to file
             }
         }
-
+        count = files.size
         LoggerService.addNormalLine("total $count file(s) found")
+        files.forEachIndexed { index, (fileUrl, file) ->
+            val token = archiveGetResourceApi.getRepoToken(
+                userId = buildVariables.variables[PIPELINE_START_USER_ID] ?: "",
+                projectId = buildVariables.projectId,
+                repoName = "pipeline",
+                path = fileUrl,
+                type = TokenType.DOWNLOAD,
+                expireSeconds = TaskUtil.getTimeOut(buildTask).times(60)
+            )
+            archiveGetResourceApi.downloadPipelineFile(
+                userId = buildVariables.variables[PIPELINE_START_USER_ID] ?: "",
+                projectId = buildVariables.projectId,
+                pipelineId = pipelineId,
+                buildId = buildId,
+                uri = fileUrl,
+                destPath = file,
+                isVmBuildEnv = TaskUtil.isVmBuildEnv(buildVariables.containerType),
+                token = token
+            )
+            LoggerService.addNormalLine("${index + 1}/$count finished")
+        }
         if (count == 0 && notFoundContinue == "false") throw TaskExecuteException(
             errorCode = ErrorCode.USER_RESOURCE_NOT_FOUND,
             errorType = ErrorType.USER,
@@ -132,7 +139,8 @@ class BuildArchiveGetTask : ITask() {
             projectId = buildVariables.projectId,
             pipelineId = pipelineId,
             buildNum = buildNo,
-            channelCode = ChannelCode.BS
+            channelCode = ChannelCode.BS,
+            buildId = buildVariables.buildId
         ).data ?: throw TaskExecuteException(
             errorCode = ErrorCode.USER_RESOURCE_NOT_FOUND,
             errorType = ErrorType.USER,

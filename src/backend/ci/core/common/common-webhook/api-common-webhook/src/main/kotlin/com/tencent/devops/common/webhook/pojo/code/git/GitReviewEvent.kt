@@ -34,6 +34,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
 data class GitReviewEvent(
+    @JsonProperty("object_kind")
+    val objectKind: String? = null,
+    val id: String,
+    val iid: String,
     val event: String,
     val author: GitUser,
     val reviewer: Reviewer? = null,
@@ -51,10 +55,20 @@ data class GitReviewEvent(
     val commitId: String? = null,
     val state: String,
     @JsonProperty("restrict_type")
-    val restrictType: String? = null
+    val restrictType: String? = null,
+    @JsonProperty("created_at")
+    val createdAt: String,
+    @JsonProperty("updated_at")
+    val updatedAt: String
 ) : GitEvent() {
     companion object {
         const val classType = "review"
+        const val ACTION_APPROVED = "approved"
+        const val ACTION_APPROVING = "approving"
+        const val ACTION_CLOSE = "closed"
+        const val ACTION_CHANGE_DENIED = "change_denied"
+        const val ACTION_CHANGE_REQUIRED = "change_required"
+        const val ACTION_EMPTY = "empty"
     }
 }
 

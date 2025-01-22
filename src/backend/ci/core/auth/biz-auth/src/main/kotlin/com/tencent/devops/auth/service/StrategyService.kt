@@ -37,17 +37,19 @@ import com.tencent.devops.auth.pojo.dto.ManageStrategyDTO
 import com.tencent.devops.auth.refresh.dispatch.AuthRefreshDispatch
 import com.tencent.devops.auth.refresh.event.StrategyUpdateEvent
 import com.tencent.devops.common.api.exception.ErrorCodeException
+import com.tencent.devops.common.api.exception.OperationException
 import com.tencent.devops.common.api.util.DateTimeUtil
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.auth.api.AuthPermission
 import com.tencent.devops.common.auth.api.AuthResourceType
+import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.model.auth.tables.records.TAuthStrategyRecord
+import java.util.concurrent.ConcurrentHashMap
+import javax.annotation.PostConstruct
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
-import java.util.concurrent.ConcurrentHashMap
-import javax.annotation.PostConstruct
 
 @Service
 @Suppress("ALL")
@@ -72,6 +74,18 @@ class StrategyService @Autowired constructor(
     fun createStrategy(userId: String, strategy: ManageStrategyDTO, name: String): Int {
         logger.info("createStrategy | $userId | $name | $strategy")
         checkResourceType(strategy.strategy)
+
+        val strategyNameCheck = strategyDao.getByName(dslContext, name)
+        if (strategyNameCheck != null) {
+            logger.warn("createStrategy: $name is exist")
+            throw OperationException(
+                I18nUtil.getCodeLanMessage(
+                    messageCode = AuthMessageCode.STRATEGT_NAME_EXIST,
+                    language = I18nUtil.getLanguage(userId)
+                )
+            )
+        }
+
         val strategyStr = objectMapper.writeValueAsString(strategy.strategy)
         val strategyInfo = StrategyInfo(
             name = name,
@@ -132,6 +146,11 @@ class StrategyService @Autowired constructor(
         return record2Entity(strategyRecord)
     }
 
+    fun getStrategyByName(strategyName: String): StrategyEntity? {
+        val strategyRecord = strategyDao.getByName(dslContext, strategyName) ?: return null
+        return record2Entity(strategyRecord)
+    }
+
     private fun record2Entity(record: TAuthStrategyRecord): StrategyEntity {
         return StrategyEntity(
             id = record.id,
@@ -150,7 +169,7 @@ class StrategyService @Autowired constructor(
                 val actions = strategyMap[it]
                     ?: throw ErrorCodeException(
                         errorCode = AuthMessageCode.STRATEGT_CHECKOUT_FAIL,
-                        defaultMessage = "actions 为空"
+                        defaultMessage = "actions is null"
                     )
                 actions!!.forEach { action ->
                     AuthPermission.get(action)

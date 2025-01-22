@@ -1,8 +1,8 @@
 <template>
-    <bk-select v-bind="dropdownConf"
+    <bk-select
+        v-bind="dropdownConf"
         :name="name"
         :loading="isLoading"
-        :placeholder="isLoading ? $t('editPage.loadingData') : placeholder"
         :value="value"
         :disabled="disabled || isLoading"
         @selected="handleSelect"
@@ -20,8 +20,14 @@
         >
         </bk-option>
         <template v-if="mergedOptionsConf.hasAddItem">
-            <div slot="extension" class="bk-selector-create-item">
-                <a :href="addItemUrl" target="_blank">
+            <div
+                slot="extension"
+                class="bk-selector-create-item"
+            >
+                <a
+                    :href="addItemUrl"
+                    target="_blank"
+                >
                     <i class="devops-icon icon-plus-circle" />
                     {{ mergedOptionsConf.itemText }}
                 </a>
@@ -59,11 +65,13 @@
                 }
             },
             dropdownConf () {
-                const { searchable, multiple, clearable } = this.mergedOptionsConf
+                const { searchable, multiple, clearable, placeholder, searchPlaceholder } = this.mergedOptionsConf
                 return {
                     searchable,
                     multiple,
-                    clearable
+                    clearable,
+                    placeholder: this.isLoading ? this.$t('editPage.loadingData') : placeholder,
+                    searchPlaceholder: searchPlaceholder ?? placeholder
                 }
             }
         },
@@ -78,7 +86,6 @@
             }
         },
         created () {
-            console.log(this.hasUrl, 'this.hasUrl')
             if (this.hasUrl) {
                 this.freshList()
             }
@@ -120,6 +127,7 @@
                 }
                 const { atomValue = {}, transformList, $route: { params = {} }, mergedOptionsConf } = this
                 const changeUrl = this.urlParse(mergedOptionsConf.url, {
+                    bkPoolType: this?.container?.dispatchType?.buildType,
                     ...params,
                     ...atomValue
                 })
@@ -133,7 +141,7 @@
                         return listMap
                     }, {})
 
-                    valueArray.map(value => {
+                    valueArray.forEach(value => {
                         if (typeof value !== 'undefined' && value !== '' && !listMap[value]) {
                             this.list.splice(0, 0, {
                                 id: value,

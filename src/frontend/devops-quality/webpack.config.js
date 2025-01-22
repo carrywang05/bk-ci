@@ -18,14 +18,13 @@
  */
 
 const webpackBaseConfig = require('../webpack.base')
-const webpack = require('webpack')
 
 module.exports = (env, argv) => {
     const config = webpackBaseConfig({
         env,
         argv,
         entry: {
-            quality: './src/index'
+            quality: './src/entry'
         },
         publicPath: '/quality/',
         dist: '/quality',

@@ -27,21 +27,30 @@
 
 package com.tencent.devops.scm
 
+import com.tencent.devops.common.api.constant.CommonMessageCode
+import com.tencent.devops.common.api.constant.DEFAULT_LOCALE_LANGUAGE
 import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.common.api.exception.TaskExecuteException
 import com.tencent.devops.common.api.pojo.ErrorCode
 import com.tencent.devops.common.api.pojo.ErrorType
+import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.service.utils.SpringContextUtil
 import com.tencent.devops.scm.code.CodeGitScmImpl
 import com.tencent.devops.scm.code.CodeGitlabScmImpl
+import com.tencent.devops.scm.code.CodeP4ScmImpl
 import com.tencent.devops.scm.code.CodeSvnScmImpl
 import com.tencent.devops.scm.code.CodeTGitScmImpl
 import com.tencent.devops.scm.code.git.CodeGitWebhookEvent
+import com.tencent.devops.scm.code.git.api.GitApi
+import com.tencent.devops.scm.code.svn.api.SVNApi
 import com.tencent.devops.scm.config.GitConfig
 import com.tencent.devops.scm.config.SVNConfig
 import com.tencent.devops.scm.enums.CodeSvnRegion
+import com.tencent.devops.scm.exception.ScmException
 
 object ScmFactory {
+    private val gitApi = GitApi()
+    private val svnApi = SVNApi()
 
     @Suppress("ALL")
     fun getScm(
@@ -82,7 +91,9 @@ object ScmFactory {
                     username = userName,
                     privateKey = privateKey,
                     passphrase = passPhrase,
-                    svnConfig = svnConfig
+                    svnConfig = svnConfig,
+                    token = token,
+                    svnApi = svnApi
                 )
             }
             ScmType.CODE_GIT -> {
@@ -109,6 +120,7 @@ object ScmFactory {
                     passPhrase = passPhrase,
                     token = token,
                     gitConfig = gitConfig,
+                    gitApi = gitApi,
                     event = event
                 )
             }
@@ -136,6 +148,7 @@ object ScmFactory {
                     passPhrase = passPhrase,
                     token = token,
                     gitConfig = gitConfig,
+                    gitApi = gitApi,
                     event = event
                 )
             }
@@ -152,8 +165,38 @@ object ScmFactory {
                     projectName = projectName,
                     branchName = branchName,
                     url = url,
+                    privateKey = privateKey,
+                    passPhrase = passPhrase,
                     token = token,
                     gitConfig = gitConfig,
+                    event = event
+                )
+            }
+            ScmType.CODE_P4 -> {
+                if (passPhrase == null) {
+                    throw ScmException(
+                        MessageUtil.getMessageByLocale(
+                            messageCode = CommonMessageCode.PWD_EMPTY,
+                            language = DEFAULT_LOCALE_LANGUAGE
+                        ),
+                        ScmType.CODE_P4.name
+                    )
+                }
+                if (userName == null) {
+                    throw ScmException(
+                        MessageUtil.getMessageByLocale(
+                            messageCode = CommonMessageCode.USER_NAME_EMPTY,
+                            language = DEFAULT_LOCALE_LANGUAGE
+                        ),
+                        ScmType.CODE_P4.name
+                    )
+                }
+                CodeP4ScmImpl(
+                    projectName = projectName,
+                    branchName = branchName,
+                    url = url,
+                    username = userName,
+                    password = passPhrase,
                     event = event
                 )
             }

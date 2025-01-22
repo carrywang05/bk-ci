@@ -1,5 +1,9 @@
 <template>
-    <bk-select @toggle="toggleVisible" @change="onChange" v-bind="selectProps">
+    <bk-select
+        @toggle="toggleVisible"
+        @change="onChange"
+        v-bind="selectProps"
+    >
         <bk-option
             v-for="item in listData"
             :key="item[settingKey]"
@@ -7,6 +11,10 @@
             :name="item[displayKey]"
             :disabled="item.disabled"
         >
+            <slot
+                name="option-item"
+                v-bind="item"
+            ></slot>
         </bk-option>
         <div slot="extension">
             <slot></slot>
@@ -28,6 +36,10 @@
             clearable: {
                 type: Boolean,
                 default: true
+            },
+            zIndex: {
+                type: Number,
+                default: 2500
             },
             isLoading: {
                 type: Boolean,
@@ -58,6 +70,10 @@
                 type: String,
                 default: 'id'
             },
+            showSelectAll: {
+                type: Boolean,
+                default: false
+            },
             searchUrl: String,
             replaceKey: String,
             dataPath: String
@@ -84,17 +100,19 @@
                 const props = {
                     value: this.value,
                     loading: this.isLoading,
-                    disabled: this.disabled,
+                    disabled: this.disabled || this.readOnly,
                     searchable: this.searchable,
                     multiple: this.multiSelect,
                     clearable: this.clearable,
                     placeholder: this.placeholder,
+                    zIndex: this.zIndex,
                     'search-key': this.displayKey,
                     'popover-options': this.popoverOptions,
                     'enable-virtual-scroll': this.list.length > 3000,
                     list: this.listData,
                     'id-key': this.settingKey,
-                    'display-key': this.displayKey
+                    'display-key': this.displayKey,
+                    'show-select-all': this.showSelectAll
                 }
                 if (this.searchUrl) props['remote-method'] = this.remoteMethod
                 return props

@@ -1,24 +1,40 @@
 <template>
-    <bk-dialog v-model="showTemplateList"
+    <bk-dialog
+        v-model="showTemplateList"
         :width="'900'"
         :position="{ top: 100 }"
         :ext-cls="'template-list-wrapper'"
         :close-icon="templateListConf.closeIcon"
-        :show-footer="templateListConf.hasFooter">
-        <div v-bkloading="{
-            isLoading: loading
-        }">
+        :show-footer="templateListConf.hasFooter"
+    >
+        <div
+            v-bkloading="{
+                isLoading: loading
+            }"
+        >
             <div class="template-list-header">
-                <div class="title">选择模板</div>
-                <div><i class="devops-icon icon-close" @click="cancel()" style="color: #C3CDD7;"></i></div>
+                <div class="title">{{ $t('quality.选择模板') }}</div>
+                <div>
+                    <i
+                        class="devops-icon icon-close"
+                        @click="cancel()"
+                        style="color: #C3CDD7;"
+                    ></i>
+                </div>
             </div>
             <div class="query-template-row">
-                <span class="template-prompt">选中后将对该模板当前和后续实例化的流水线生效</span>
+                <span class="template-prompt">{{ $t('quality.选中后将对该模板当前和后续实例化的流水线生效') }}</span>
                 <div class="search-input-row">
-                    <input class="bk-form-input" type="text" placeholder="请输入..."
+                    <input
+                        class="bk-form-input"
+                        type="text"
                         v-model="searchName"
-                        @keyup.enter="toSearchPipeline()">
-                    <i class="devops-icon icon-search" @click="toSearchPipeline()"></i>
+                        @keyup.enter="toSearchPipeline()"
+                    >
+                    <i
+                        class="devops-icon icon-search"
+                        @click="toSearchPipeline()"
+                    ></i>
                 </div>
             </div>
             <div class="template-content">
@@ -27,32 +43,60 @@
                     ref="effectTemplate"
                     class="effect-pipeline-table"
                     :data="templateList"
-                    :empty-text="'暂无数据'"
+                    :empty-text="$t('quality.暂无数据')"
                     :pagination="pagination"
                     @page-change="handlePageChange"
                     @select="selectItem"
-                    @select-all="selectAll">
-                    <bk-table-column type="selection" width="60" align="center"></bk-table-column>
-                    <bk-table-column label="模板名称" prop="name" width="260">
+                    @select-all="selectAll"
+                >
+                    <bk-table-column
+                        type="selection"
+                        width="60"
+                        align="center"
+                    ></bk-table-column>
+                    <bk-table-column
+                        :label="$t('quality.模板名称')"
+                        prop="name"
+                        width="260"
+                    >
                         <template slot-scope="props">
                             <span :title="props.row.name">{{ props.row.name }}</span>
                         </template>
                     </bk-table-column>
-                    <bk-table-column label="来源" prop="templateType">
+                    <bk-table-column
+                        :label="$t('quality.来源')"
+                        prop="templateType"
+                    >
                         <template slot-scope="props">
-                            <span>{{ props.row.templateType | templateTypeFilter }}</span>
+                            <span>{{ templateTypeFilter(props.row.templateType) }}</span>
                         </template>
                     </bk-table-column>
-                    <bk-table-column label="关联代码库" width="320">
+                    <bk-table-column
+                        :label="$t('quality.关联代码库')"
+                        width="320"
+                    >
                         <template slot-scope="props">
-                            <section class="codelib-box" :title="handleFormat(props.row.associateCodes)">
-                                <div class="codelib-item" v-for="(entry, eIndex) in (props.row.associateCodes || []).slice(0, 3)" :key="eIndex">{{ entry }}</div>
+                            <section
+                                class="codelib-box"
+                                :title="handleFormat(props.row.associateCodes)"
+                            >
+                                <div
+                                    class="codelib-item"
+                                    v-for="(entry, eIndex) in (props.row.associateCodes || []).slice(0, 3)"
+                                    :key="eIndex"
+                                >
+                                    {{ entry }}
+                                </div>
                             </section>
                         </template>
                     </bk-table-column>
-                    <bk-table-column label="流水线实例" prop="associatePipelines">
+                    <bk-table-column
+                        :label="$t('quality.流水线实例')"
+                        prop="associatePipelines"
+                    >
                         <template slot-scope="props">
-                            <a class="instance-count"
+                            <a
+                                class="instance-count"
                                 target="_blank"
                                 :href="`/console/pipeline/${projectId}/template/${props.row.templateId}/instance`"
                             >{{ props.row.associatePipelines.length }}
@@ -62,8 +106,20 @@
                 </bk-table>
             </div>
             <div class="footer">
-                <button class="bk-button bk-primary" type="button" @click="confirm()">确认</button>
-                <button class="bk-button bk-default" type="button" @click="cancel()">取消</button>
+                <button
+                    class="bk-button bk-primary"
+                    type="button"
+                    @click="confirm()"
+                >
+                    {{ $t('quality.确认') }}
+                </button>
+                <button
+                    class="bk-button bk-default"
+                    type="button"
+                    @click="cancel()"
+                >
+                    {{ $t('quality.取消') }}
+                </button>
             </div>
         </div>
     </bk-dialog>
@@ -71,21 +127,6 @@
 
 <script>
     export default {
-        filters: {
-            templateTypeFilter (val) {
-                let res = ''
-                switch (val) {
-                    case 'constraint':
-                    case 'CONSTRAINT':
-                        res = '研发商店'
-                        break
-                    default:
-                        res = '自定义'
-                        break
-                }
-                return res
-            }
-        },
         props: {
             isShow: {
                 type: Boolean,
@@ -135,12 +176,25 @@
         },
         methods: {
             handleFormat (codes) {
-                let tips = ``
-                codes.map(item => {
+                let tips = ''
+                codes.forEach(item => {
                     tips += `${item}\n`
                 })
 
                 return tips
+            },
+            templateTypeFilter (val) {
+                let res = ''
+                switch (val) {
+                    case 'constraint':
+                    case 'CONSTRAINT':
+                        res = this.$t('quality.研发商店')
+                        break
+                    default:
+                        res = this.$t('quality.自定义')
+                        break
+                }
+                return res
             },
             async requestList (page, pageSize, isPageTurn) {
                 const params = {
@@ -195,7 +249,7 @@
             },
             selectAll (selection) {
                 if (selection.length) {
-                    selection.map(item => {
+                    selection.forEach(item => {
                         if (!this.localSelected.includes(item.templateId)) {
                             this.localSelected.push(item.templateId)
                         }
@@ -283,7 +337,7 @@
             }
         }
         .template-content {
-            height: 546px;
+            min-height: 546px;
             padding: 0 24px;
             overflow: hidden;
         }

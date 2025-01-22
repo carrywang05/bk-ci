@@ -2,15 +2,32 @@
     <article :class="{ 'metadata-list': true, 'left-render': isLeftRender }">
         <div class="title">{{ $t('metaData') }}</div>
         <div class="data-head">
-            <div class="key-head">{{ $t('view.key')}}</div>
-            <div class="value-head">{{ $t('view.value')}}</div>
+            <div class="key-head">{{ $t('view.key') }}</div>
+            <div class="value-head">{{ $t('view.value') }}</div>
         </div>
-        <div class="data-row" v-for="(row, index) in metadataList" :key="index">
-            <div class="key-item" :title="row.key">{{ row.key }}</div>
-            <div class="value-item" :title="row.value">{{ row.value }}</div>
+        <div
+            class="data-row"
+            v-for="(row, index) in metadataList"
+            :key="index"
+        >
+            <div
+                class="key-item"
+                :title="row.key"
+            >
+                {{ row.key }}
+            </div>
+            <div
+                class="value-item"
+                :title="row.value"
+            >
+                {{ row.value }}
+            </div>
         </div>
-        <div class="data-row empty-row" v-if="!metadataList.length">
-            {{ $t('noData')}}
+        <div
+            class="data-row empty-row"
+            v-if="!metadataList.length"
+        >
+            {{ $t('noData') }}
         </div>
     </article>
 </template>
@@ -50,7 +67,7 @@
                     path: this.path
                 })
                 this.metadataList.splice(0, this.metadataList.length)
-                Object.keys(res.meta).map(item => {
+                Object.keys(res.meta).forEach(item => {
                     this.metadataList.push({
                         key: item,
                         value: res.meta[item]
@@ -132,7 +149,7 @@
         }
         .empty-row {
             padding-left: 18px;
-            color: $fontLigtherColor;
+            color: $fontLighterColor;
         }
     }
     .left-render {

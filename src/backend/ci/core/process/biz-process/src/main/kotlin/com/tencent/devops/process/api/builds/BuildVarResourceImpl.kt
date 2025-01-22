@@ -30,13 +30,17 @@ package com.tencent.devops.process.api.builds
 import com.tencent.devops.common.api.exception.ParamBlankException
 import com.tencent.devops.common.api.exception.PermissionForbiddenException
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.auth.api.AuthPermission
 import com.tencent.devops.common.web.RestResource
+import com.tencent.devops.common.web.utils.I18nUtil
+import com.tencent.devops.process.constant.ProcessMessageCode.BK_BUILD_INFO
+import com.tencent.devops.process.constant.ProcessMessageCode.ERROR_USER_NO_PERMISSION_GET_PIPELINE_INFO
 import com.tencent.devops.process.engine.service.PipelineRepositoryService
+import com.tencent.devops.process.enums.VariableType
 import com.tencent.devops.process.permission.PipelinePermissionService
 import com.tencent.devops.process.service.BuildVariableService
 import com.tencent.devops.process.service.PipelineContextService
-
 import org.apache.commons.lang3.StringUtils
 import org.springframework.beans.factory.annotation.Autowired
 
@@ -47,33 +51,67 @@ class BuildVarResourceImpl @Autowired constructor(
     private val pipelineRepositoryService: PipelineRepositoryService,
     private val pipelineContextService: PipelineContextService
 ) : BuildVarResource {
+
     override fun getBuildVar(buildId: String, projectId: String, pipelineId: String): Result<Map<String, String>> {
         checkParam(buildId = buildId, projectId = projectId, pipelineId = pipelineId)
         checkPermission(projectId = projectId, pipelineId = pipelineId)
-        return Result(buildVariableService.getAllVariable(buildId))
+        return Result(buildVariableService.getAllVariable(projectId, pipelineId, buildId))
     }
 
     override fun getContextVariableByName(
         buildId: String,
         projectId: String,
         pipelineId: String,
-        contextName: String
+        containerId: String,
+        taskId: String?,
+        contextName: String,
+        check: Boolean?
     ): Result<String?> {
         checkParam(buildId = buildId, projectId = projectId, pipelineId = pipelineId)
         checkPermission(projectId = projectId, pipelineId = pipelineId)
+        val alisName = if (check == true) {
+            checkVariable(variableName = contextName)
+            if (taskId.isNullOrBlank() && VariableType.valueOf(contextName).alisName.isNotBlank()) {
+                throw ParamBlankException("Plugin SDK needs to be upgraded")
+            }
+            if (VariableType.valueOf(contextName) == VariableType.BK_CI_BUILD_TASK_ID) {
+                return Result(taskId)
+            }
+            VariableType.valueOf(contextName).alisName
+        } else ""
         // 如果无法替换上下文预置变量则保持原变量名去查取
         val varName = pipelineContextService.getBuildVarName(contextName) ?: contextName
-        return Result(buildVariableService.getVariable(buildId, varName))
+        val variables = buildVariableService.getAllVariable(projectId, pipelineId, buildId)
+        val allContext = pipelineContextService.buildContext(
+            projectId = projectId,
+            buildId = buildId,
+            pipelineId = pipelineId,
+            stageId = null,
+            containerId = containerId,
+            taskId = taskId,
+            variables = variables
+        )
+        return Result(variables[varName] ?: allContext[varName] ?: allContext[alisName])
     }
 
     fun checkPermission(projectId: String, pipelineId: String) {
-        val userId = pipelineRepositoryService.getPipelineInfo(projectId, pipelineId)?.lastModifyUser ?: ""
+        // pref:流水线相关的文件操作人调整为流水线的权限代持人 #11016
+        val userId = pipelineRepositoryService.getPipelineOauthUser(projectId, pipelineId)?.takeIf { it.isNotBlank() }
+            ?: pipelineRepositoryService.getPipelineInfo(projectId, pipelineId)?.lastModifyUser ?: ""
         if (!pipelinePermissionService.checkPipelinePermission(
                 userId = userId,
                 projectId = projectId,
                 pipelineId = pipelineId,
-                permission = AuthPermission.EXECUTE)) {
-            throw PermissionForbiddenException("用户${userId}无权获取此流水线构建信息")
+                permission = AuthPermission.EXECUTE
+            )
+        ) {
+            throw PermissionForbiddenException(
+                MessageUtil.getMessageByLocale(
+                    ERROR_USER_NO_PERMISSION_GET_PIPELINE_INFO,
+                    I18nUtil.getLanguage(userId),
+                    arrayOf(userId, pipelineId, I18nUtil.getCodeLanMessage(BK_BUILD_INFO))
+                )
+            )
         }
     }
 
@@ -83,6 +121,12 @@ class BuildVarResourceImpl @Autowired constructor(
         }
         if (StringUtils.isBlank(pipelineId)) {
             throw ParamBlankException("pipeline Id is null or blank")
+        }
+    }
+
+    fun checkVariable(variableName: String) {
+        if (!VariableType.validate(variableName)) {
+            throw ParamBlankException("This variable is currently not supported")
         }
     }
 }

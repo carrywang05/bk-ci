@@ -27,7 +27,7 @@
 
 package com.tencent.devops.process.engine.service
 
-import com.tencent.devops.process.pojo.pipeline.enums.CallBackNetWorkRegionType
+import com.tencent.devops.common.pipeline.event.CallBackNetWorkRegionType
 import org.springframework.stereotype.Service
 
 @Service
@@ -38,6 +38,10 @@ class ProjectPipelineCallBackUrlGeneratorImpl : ProjectPipelineCallBackUrlGenera
     }
 
     override fun encodeCallbackUrl(url: String): String {
+        return url
+    }
+
+    override fun decodeCallbackUrl(url: String): String {
         return url
     }
 }

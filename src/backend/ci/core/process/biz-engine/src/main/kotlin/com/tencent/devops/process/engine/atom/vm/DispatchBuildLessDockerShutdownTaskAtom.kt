@@ -28,26 +28,34 @@
 package com.tencent.devops.process.engine.atom.vm
 
 import com.tencent.devops.common.api.util.JsonUtil
-import com.tencent.devops.common.event.dispatcher.pipeline.PipelineEventDispatcher
+import com.tencent.devops.common.api.util.timestampmilli
+import com.tencent.devops.common.event.dispatcher.SampleEventDispatcher
 import com.tencent.devops.common.log.utils.BuildLogPrinter
 import com.tencent.devops.common.pipeline.container.NormalContainer
+import com.tencent.devops.common.pipeline.enums.BuildRecordTimeStamp
 import com.tencent.devops.common.pipeline.enums.BuildStatus
+import com.tencent.devops.common.pipeline.pojo.time.BuildTimestampType
 import com.tencent.devops.process.engine.atom.AtomResponse
 import com.tencent.devops.process.engine.atom.IAtomTask
 import com.tencent.devops.process.engine.atom.defaultFailAtomResponse
+import com.tencent.devops.process.engine.control.BuildingHeartBeatUtils
 import com.tencent.devops.process.engine.pojo.PipelineBuildTask
-import com.tencent.devops.process.pojo.mq.PipelineBuildLessShutdownDispatchEvent
+import com.tencent.devops.process.engine.service.record.ContainerBuildRecordService
+import com.tencent.devops.process.pojo.mq.PipelineBuildLessShutdownEvent
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.context.annotation.Scope
 import org.springframework.stereotype.Component
+import java.time.LocalDateTime
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class DispatchBuildLessDockerShutdownTaskAtom @Autowired constructor(
     private val buildLogPrinter: BuildLogPrinter,
-    private val pipelineEventDispatcher: PipelineEventDispatcher
+    private val buildingHeartBeatUtils: BuildingHeartBeatUtils,
+    private val containerBuildRecordService: ContainerBuildRecordService,
+    private val pipelineEventDispatcher: SampleEventDispatcher
 ) : IAtomTask<NormalContainer> {
     override fun getParamElement(task: PipelineBuildTask): NormalContainer {
         return JsonUtil.mapTo(task.taskParams, NormalContainer::class.java)
@@ -70,7 +78,7 @@ class DispatchBuildLessDockerShutdownTaskAtom @Autowired constructor(
         val pipelineId = task.pipelineId
 
         pipelineEventDispatcher.dispatch(
-            PipelineBuildLessShutdownDispatchEvent(
+            PipelineBuildLessShutdownEvent(
                 source = "shutdownVMTaskAtom",
                 projectId = projectId,
                 pipelineId = pipelineId,
@@ -81,13 +89,26 @@ class DispatchBuildLessDockerShutdownTaskAtom @Autowired constructor(
                 executeCount = task.executeCount
             )
         )
+        containerBuildRecordService.updateContainerRecord(
+            projectId = task.projectId, pipelineId = task.pipelineId, buildId = task.buildId,
+            containerId = task.containerId, executeCount = task.executeCount ?: 1,
+            containerVar = emptyMap(), buildStatus = null,
+            timestamps = mapOf(
+                BuildTimestampType.JOB_CONTAINER_SHUTDOWN to
+                    BuildRecordTimeStamp(LocalDateTime.now().timestampmilli(), null)
+            )
+        )
+
         // 同步Job执行状态
         buildLogPrinter.stopLog(
             buildId = buildId,
-            tag = task.containerHashId ?: "",
-            jobId = task.containerHashId ?: "",
-            executeCount = task.executeCount
+            containerHashId = task.containerHashId,
+            executeCount = task.executeCount,
+            stepId = task.stepId
         )
+
+        // 关闭心跳
+        buildingHeartBeatUtils.dropHeartbeat(buildId, vmSeqId, task.executeCount)
 
         logger.info("[$buildId]|SHUTDOWN_VM|stageId=${task.stageId}|container=${task.containerId}|vmSeqId=$vmSeqId")
         return AtomResponse(BuildStatus.SUCCEED)
@@ -110,7 +131,7 @@ class DispatchBuildLessDockerShutdownTaskAtom @Autowired constructor(
             } else { // 强制终止的设置为失败
                 logger.warn("[${task.buildId}]|[FORCE_STOP_BUILD_LESS_IN_SHUTDOWN_TASK]")
                 pipelineEventDispatcher.dispatch(
-                    PipelineBuildLessShutdownDispatchEvent(
+                    PipelineBuildLessShutdownEvent(
                         source = "force_stop_shutdownBuildLess",
                         projectId = task.projectId,
                         pipelineId = task.pipelineId,

@@ -1,15 +1,29 @@
 <template>
     <article class="turbo-home">
-        <bk-tab :active.sync="active" type="unborder-card" class="home-nav g-turbo-box-without-radius">
-            <bk-tab-panel v-for="(panel, index) in panels"
+        <bk-tab
+            :active.sync="active"
+            type="unborder-card"
+            class="home-nav g-turbo-box-without-radius"
+        >
+            <bk-tab-panel
+                v-for="(panel, index) in panels"
                 v-bind="panel"
-                :key="index">
+                :key="index"
+            >
                 <template slot="label">
-                    <section @click="gotoPage(panel.name)" class="home-nav-tab">{{ panel.label }}</section>
+                    <section
+                        @click="gotoPage(panel.name)"
+                        class="home-nav-tab"
+                    >
+                        {{ panel.label }}
+                    </section>
                 </template>
             </bk-tab-panel>
         </bk-tab>
-        <router-view class="turbo-main" v-bkloadng="{ isloading }"></router-view>
+        <router-view
+            class="turbo-main"
+            v-bkloadng="{ isloading }"
+        ></router-view>
     </article>
 </template>
 
@@ -89,7 +103,9 @@
                         this.active = 'overview'
                     }
                 }).catch((err) => {
-                    this.$bkMessage({ theme: 'error', message: err.message || err })
+                    if (err.code !== 2300017) {
+                        this.$bkMessage({ theme: 'error', message: err.message || err })
+                    }
                 }).finally(() => {
                     this.isloading = false
                 })
@@ -127,7 +143,7 @@
             cursor: pointer;
             padding: 0 18px;
         }
-        /deep/ .bk-tab-header {
+        ::v-deep .bk-tab-header {
             background-color: #fff;
             height: 5.96vh !important;
             line-height: 5.96vh !important;
@@ -156,7 +172,7 @@
                 line-height: 5.96vh !important;
             }
         }
-        /deep/ .bk-tab-section {
+        ::v-deep .bk-tab-section {
             padding: 0;
         }
     }

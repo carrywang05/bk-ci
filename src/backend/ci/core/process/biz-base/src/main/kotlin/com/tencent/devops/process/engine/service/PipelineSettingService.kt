@@ -31,7 +31,7 @@ import com.tencent.devops.common.api.util.DateTimeUtil
 import com.tencent.devops.common.redis.RedisOperation
 import com.tencent.devops.process.dao.PipelineSettingDao
 import com.tencent.devops.process.engine.dao.PipelineBuildDao
-import com.tencent.devops.process.pojo.setting.PipelineRunLockType
+import com.tencent.devops.common.pipeline.pojo.setting.PipelineRunLockType
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -53,15 +53,17 @@ class PipelineSettingService @Autowired constructor(
         private const val PIPELINE_CURRENT_DAY_BUILD_COUNT_KEY_PREFIX = "PIPELINE_CURRENT_DAY_BUILD_COUNT"
     }
 
-    fun isQueueTimeout(pipelineId: String, startTime: Long): Boolean {
-        val setting = pipelineSettingDao.getSetting(dslContext, pipelineId)
+    fun isQueueTimeout(projectId: String, pipelineId: String, startTime: Long): Boolean {
+        val setting = pipelineSettingDao.getSetting(dslContext, projectId, pipelineId)
         val waitQueueTimeMills =
             when {
                 setting == null -> {
                     TimeUnit.HOURS.toMillis(1)
                 }
-                setting.runLockType == PipelineRunLockType.toValue(PipelineRunLockType.SINGLE) -> {
-                    TimeUnit.SECONDS.toMillis(setting.waitQueueTimeSecond.toLong())
+                setting.runLockType == PipelineRunLockType.SINGLE ||
+                    setting.runLockType == PipelineRunLockType.GROUP_LOCK ||
+                    setting.runLockType == PipelineRunLockType.MULTIPLE -> {
+                    TimeUnit.MINUTES.toMillis(setting.waitQueueTimeMinute.toLong())
                 }
                 else -> {
                     TimeUnit.HOURS.toMillis(1)
@@ -70,25 +72,35 @@ class PipelineSettingService @Autowired constructor(
         return System.currentTimeMillis() - startTime > waitQueueTimeMills
     }
 
-    fun getCurrentDayBuildCount(pipelineId: String): Int {
+    fun getCurrentDayBuildCount(projectId: String, pipelineId: String): Int {
         val currentDayStr = DateTimeUtil.formatDate(Date(), DateTimeUtil.YYYY_MM_DD)
         val currentDayBuildCountKey = getCurrentDayBuildCountKey(pipelineId, currentDayStr)
         // 判断缓存中是否有值，没有值则从db中实时查
         return if (!redisOperation.hasKey(currentDayBuildCountKey)) {
             logger.info("getCurrentDayBuildCount $currentDayBuildCountKey is not exist!")
-            getCurrentDayBuildCountFromDb(dslContext, currentDayStr, pipelineId)
+            getCurrentDayBuildCountFromDb(
+                transactionContext = dslContext,
+                projectId = projectId,
+                currentDayStr = currentDayStr,
+                pipelineId = pipelineId
+            )
         } else {
             redisOperation.get(currentDayBuildCountKey)!!.toInt()
         }
     }
 
-    fun setCurrentDayBuildCount(transactionContext: DSLContext, pipelineId: String): Int {
+    fun setCurrentDayBuildCount(transactionContext: DSLContext?, projectId: String, pipelineId: String): Int {
         val currentDayStr = DateTimeUtil.formatDate(Date(), DateTimeUtil.YYYY_MM_DD)
         val currentDayBuildCountKey = getCurrentDayBuildCountKey(pipelineId, currentDayStr)
         // 判断缓存中是否有值，没有值则从db中实时查
         if (!redisOperation.hasKey(currentDayBuildCountKey)) {
             logger.info("setCurrentDayBuildCount $currentDayBuildCountKey is not exist!")
-            getCurrentDayBuildCountFromDb(transactionContext, currentDayStr, pipelineId)
+            getCurrentDayBuildCountFromDb(
+                transactionContext = transactionContext ?: dslContext,
+                projectId = projectId,
+                currentDayStr = currentDayStr,
+                pipelineId = pipelineId
+            )
         }
         // redis有值则每次自增1
         return redisOperation.increment(currentDayBuildCountKey, 1)?.toInt() ?: 1
@@ -100,6 +112,7 @@ class PipelineSettingService @Autowired constructor(
 
     private fun getCurrentDayBuildCountFromDb(
         transactionContext: DSLContext,
+        projectId: String,
         currentDayStr: String,
         pipelineId: String
     ): Int {
@@ -116,9 +129,11 @@ class PipelineSettingService @Autowired constructor(
         )
         val count = pipelineBuildDao.countBuildNumByTime(
             dslContext = transactionContext,
+            projectId = projectId,
             pipelineId = pipelineId,
             startTime = startTime,
-            endTime = endTime
+            endTime = endTime,
+            debugVersion = null // 度量数据只关注正式构建
         )
         // 把当前流水线当日构建次数存入redis，失效期设置为1天
         redisOperation.set(

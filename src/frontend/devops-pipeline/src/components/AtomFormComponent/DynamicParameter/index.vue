@@ -1,16 +1,31 @@
 <template>
-    <ul class="param-main" v-bkloading="{ isLoading }">
-        <li class="param-input" v-for="(parameter, paramIndex) in parameters" :key="paramIndex">
-            <parameter-input v-for="(model, index) in parameter.paramModels"
-                :style="{ maxWidth: `calc(${100 / parameter.paramModels.length}% - ${58 / parameter.paramModels.length}px)` }"
+    <ul
+        class="param-main"
+        v-bkloading="{ isLoading }"
+    >
+        <li
+            class="param-input"
+            v-for="(parameter, paramIndex) in parameters"
+            :key="paramIndex"
+        >
+            <parameter-input
+                v-for="model in parameter.paramModels"
+
                 :key="model.id"
-                :class="[{ 'last-child': index === parameter.paramModels.length - 1 }, 'input-com']"
+                class="input-com"
                 @update-value="(newValue) => updateValue(model, newValue)"
                 :param-values="paramValues"
                 v-bind="model"
             ></parameter-input>
-            <i class="bk-icon icon-plus-circle" @click="plusParam(parameter, paramIndex)"></i>
-            <i class="bk-icon icon-minus-circle" v-if="parameters.length > 1" @click="minusParam(paramIndex)"></i>
+            <i
+                class="bk-icon icon-plus-circle"
+                @click="plusParam(parameter, paramIndex)"
+            ></i>
+            <i
+                class="bk-icon icon-minus-circle"
+                v-if="parameters.length > 1"
+                @click="minusParam(paramIndex)"
+            ></i>
         </li>
     </ul>
 </template>
@@ -44,7 +59,11 @@
         computed: {
             paramValues () {
                 const { atomValue = {}, $route: { params = {} } } = this
-                return { ...params, ...atomValue }
+                return {
+                    bkPoolType: this?.container?.dispatchType?.buildType,
+                    ...params,
+                    ...atomValue
+                }
             }
         },
 
@@ -115,14 +134,14 @@
                     this.parameters = values.map((value) => {
                         const modelId = value.id
                         const originModel = this.parameters.find(x => x.id === modelId)
-                        if (!originModel) return
+                        if (!originModel) return undefined
                         const currentModel = JSON.parse(JSON.stringify(originModel))
                         const paramModels = currentModel.paramModels
                         const values = value.values
                         paramModels.forEach((model) => {
-                            const currentValue = values.find(x => x.id === model.id)
+                            const currentValue = values.find(x => x.id === model.id) || {}
                             if (Array.isArray(currentValue.value)) currentValue.value = currentValue.value.filter(v => v !== '')
-                            model.value = currentValue.value
+                            model.value = currentValue.value === undefined ? '' : currentValue.value
                         })
                         return currentModel
                     })
@@ -159,14 +178,13 @@
         }
         .param-input {
             margin-bottom: 10px;
-            display: flex;
+            display: grid;
             align-items: center;
+            grid-gap: 10px;
+            grid-auto-flow: column;
             .input-com {
-                flex: 1;
-                margin-right: 10px;
-                &.last-child {
-                    margin-right: 0;
-                }
+                min-width: 0;
+                display: block;
             }
         }
     }

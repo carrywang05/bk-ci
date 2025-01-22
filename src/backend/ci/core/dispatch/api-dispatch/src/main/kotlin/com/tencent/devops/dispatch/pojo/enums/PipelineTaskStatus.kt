@@ -38,10 +38,15 @@ enum class PipelineTaskStatus(val status: Int) {
     companion object {
         fun toStatus(status: Int): PipelineTaskStatus {
             PipelineTaskStatus.values().forEach {
-                if (it.status == status)
+                if (it.status == status) {
                     return it
+                }
             }
             throw NotFoundException("Can't find the pipeline task status($status)")
+        }
+
+        fun parse(input: String): PipelineTaskStatus {
+            return values().find { it.name == input } ?: DONE
         }
     }
 }

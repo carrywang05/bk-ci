@@ -27,24 +27,41 @@
 
 package com.tencent.devops.common.pipeline.pojo
 
-import com.tencent.devops.common.api.util.EnvUtils
 import com.tencent.devops.common.api.util.UUIDUtil
 import com.tencent.devops.common.api.util.timestampmilli
+import com.tencent.devops.common.pipeline.EnvReplacementParser
+import com.tencent.devops.common.pipeline.dialect.IPipelineDialect
 import com.tencent.devops.common.pipeline.enums.BuildStatus
 import com.tencent.devops.common.pipeline.enums.ManualReviewAction
 import com.tencent.devops.common.pipeline.option.StageControlOption
 import com.tencent.devops.common.pipeline.pojo.element.atom.ManualReviewParam
+import io.swagger.v3.oas.annotations.media.Schema
 import java.time.LocalDateTime
 
+@Schema(title = "stage准入准出配置模型")
 data class StagePauseCheck(
+    @get:Schema(title = "是否人工触发", required = false)
     var manualTrigger: Boolean? = false,
+    @get:Schema(title = "状态", required = false)
     var status: String? = null,
+    @get:Schema(title = "审核说明", required = false)
     var reviewDesc: String? = null,
+    @get:Schema(title = "审核流配置", required = false)
     var reviewGroups: MutableList<StageReviewGroup>? = null, // 审核流配置
+    @get:Schema(title = "审核变量", required = false)
     var reviewParams: List<ManualReviewParam>? = null, // 审核变量
+    @get:Schema(title = "等待审核的超时时间，默认24小时兜底", required = false)
     var timeout: Int? = 24, // 等待审核的超时时间，默认24小时兜底
+    @get:Schema(title = "质量红线规则ID集合", required = false)
     var ruleIds: List<String>? = null, // 质量红线规则ID集合
-    var checkTimes: Int? = null // 记录本次构建质量红线规则的检查次数
+    @get:Schema(title = "记录本次构建质量红线规则的检查次数", required = false)
+    var checkTimes: Int? = null, // 记录本次构建质量红线规则的检查次数
+    @get:Schema(title = "是否以markdown格式发送审核说明", required = false)
+    var markdownContent: Boolean? = false, // 是否以markdown格式发送审核说明
+    @get:Schema(title = "发送的通知类型", required = false)
+    var notifyType: MutableList<String>? = mutableListOf("RTX"), // 通知类型[企业微信群消息]
+    @get:Schema(title = "企业微信群id", required = false)
+    var notifyGroup: MutableList<String>? = null
 ) {
 
     /**
@@ -80,7 +97,7 @@ data class StagePauseCheck(
         groupId: String? = null,
         params: List<ManualReviewParam>? = null,
         suggest: String? = null
-    ): Boolean {
+    ): StageReviewGroup? {
         val group = getReviewGroupById(groupId)
         if (group != null && group.status == null) {
             group.status = action.name
@@ -94,9 +111,9 @@ data class StagePauseCheck(
             } else if (action == ManualReviewAction.ABORT) {
                 status = BuildStatus.REVIEW_ABORT.name
             }
-            return true
+            return group
         }
-        return false
+        return null
     }
 
     /**
@@ -125,7 +142,12 @@ data class StagePauseCheck(
                 group.reviewTime = null
                 group.operator = null
                 group.params = null
+                group.suggest = null
             }
+        }
+        if (init) {
+            status = null
+            checkTimes = null
         }
     }
 
@@ -159,16 +181,45 @@ data class StagePauseCheck(
     /**
      *  进入审核流程前完成所有审核人变量替换
      */
-    fun parseReviewVariables(variables: Map<String, String>) {
+    fun parseReviewVariables(variables: Map<String, String>, dialect: IPipelineDialect) {
+        val contextPair = EnvReplacementParser.getCustomExecutionContextByMap(variables)
         reviewGroups?.forEach { group ->
-            if (group.status == null) {
+            if (group.status != null) return@forEach
+            if (group.reviewers.isNotEmpty()) {
                 val reviewers = group.reviewers.joinToString(",")
-                val realReviewers = EnvUtils.parseEnv(reviewers, variables)
-                    .split(",").toList()
+                val realReviewers = EnvReplacementParser.parse(
+                    value = reviewers,
+                    contextMap = variables,
+                    onlyExpression = dialect.supportUseExpression(),
+                    contextPair = contextPair
+                ).split(",").toList()
                 group.reviewers = realReviewers
             }
+            if (group.groups.isNotEmpty()) {
+                val groups = group.groups.joinToString(",")
+                val realGroups = EnvReplacementParser.parse(
+                    value = groups,
+                    contextMap = variables,
+                    onlyExpression = dialect.supportUseExpression(),
+                    contextPair = contextPair
+                ).split(",").toList()
+                group.groups = realGroups
+            }
         }
-        reviewDesc = EnvUtils.parseEnv(reviewDesc, variables)
+        reviewDesc = EnvReplacementParser.parse(
+            value = reviewDesc,
+            contextMap = variables,
+            onlyExpression = dialect.supportUseExpression(),
+            contextPair = contextPair
+        )
+        notifyGroup = notifyGroup?.map {
+            EnvReplacementParser.parse(
+                value = it,
+                contextMap = variables,
+                onlyExpression = dialect.supportUseExpression(),
+                contextPair = contextPair
+            )
+        }?.toMutableList()
         reviewParams?.forEach { it.parseValueWithType(variables) }
     }
 
@@ -193,14 +244,16 @@ data class StagePauseCheck(
                 status = if (stageControlOption.triggered == true) {
                     BuildStatus.REVIEW_PROCESSED.name
                 } else null,
-                reviewGroups = mutableListOf(StageReviewGroup(
-                    id = UUIDUtil.generate(),
-                    reviewers = stageControlOption.triggerUsers ?: listOf(),
-                    status = if (stageControlOption.triggered == true) {
-                        ManualReviewAction.PROCESS.name
-                    } else null,
-                    params = stageControlOption.reviewParams
-                )),
+                reviewGroups = mutableListOf(
+                    StageReviewGroup(
+                        id = UUIDUtil.generate(),
+                        reviewers = stageControlOption.triggerUsers ?: listOf(),
+                        status = if (stageControlOption.triggered == true) {
+                            ManualReviewAction.PROCESS.name
+                        } else null,
+                        params = stageControlOption.reviewParams
+                    )
+                ),
                 reviewDesc = stageControlOption.reviewDesc,
                 reviewParams = stageControlOption.reviewParams,
                 timeout = stageControlOption.timeout

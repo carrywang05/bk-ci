@@ -10,12 +10,19 @@
                 <div>
                     <div class="form-group">
                         <label for="pipelineName" class="filter-label">{{ $t('pipelineName') }}：</label>
-                        <input type="text" class="bk-form-input input-text" name="pipelineName" id="pipelineName" :placeholder="$t('newlist.filterByNameTips')"
+                        <bk-input
                             v-validate.initial="'max:40'"
+                            name="pipelineName"
+                            id="pipelineName"
+                            :placeholder="$t('newlist.filterByNameTips')"
                             :class="{
-                                'is-danger': errors.has('pipelineName')
+                                'is-danger': errors.has('pipelineName'),
+                                'input-text': true
                             }"
-                            v-model="currentFilter.filterByPipelineName">
+                            clearable
+                            v-model.trim="currentFilter.filterByPipelineName"
+                            @enter="filterCommit"
+                        />
                         <p :class="errors.has('pipelineName') ? 'error-tips' : 'normal-tips'">{{errors.first("pipelineName")}}</p>
                     </div>
                     <div class="form-group">
@@ -38,8 +45,7 @@
                     </div>
                     <div class="form-group filter-modify">
                         <bk-button theme="primary" size="small" :disabled="isDisabled" @click.stop.prevent="filterCommit">{{ $t('newlist.filter') }}</bk-button>
-                        <a class="btn"
-                            @click="empty">{{ $t('newlist.reset') }}</a>
+                        <bk-button text class="btn" @click="resetFilter">{{ $t('newlist.reset') }}</bk-button>
                     </div>
                 </div>
             </div>
@@ -87,7 +93,7 @@
         },
         computed: {
             ...mapGetters({
-                'tagGroupList': 'pipelines/getTagGroupList'
+                tagGroupList: 'pipelines/getTagGroupList'
             }),
             projectId () {
                 return this.$route.params.projectId
@@ -116,7 +122,7 @@
                 }
             },
             handleCurrentFilter () {
-                this.tagGroupList.map(item => {
+                this.tagGroupList.forEach(item => {
                     const res = this.currentFilter.groups.find(iitem => (iitem.id === item.id))
                     if (res) {
                         Object.assign(this.currentFilter, { [item.id]: res.labels })
@@ -125,11 +131,10 @@
                     }
                 })
             },
-            selected (id, data) {},
             async filterCommit () {
                 let labels = []
                 let labelIds = ''
-                this.tagGroupList.map(item => {
+                this.tagGroupList.forEach(item => {
                     if (this.currentFilter[item.id] && this.currentFilter[item.id].length > 0) {
                         labels = labels.concat(this.currentFilter[item.id])
                     }
@@ -143,13 +148,17 @@
                     filterByCreator: this.currentFilter.filterByCreator.join(',')
                 }, this.currentFilter)
             },
+            resetFilter () {
+                this.empty()
+                this.$nextTick(this.filterCommit)
+            },
             empty () {
                 this.currentFilter = {
                     filterByPipelineName: '',
                     filterByCreator: [],
                     groups: []
                 }
-                this.tagGroupList.map(item => {
+                this.tagGroupList.forEach(item => {
                     Object.assign(this.currentFilter, { [item.id]: [] })
                 })
             },
@@ -188,7 +197,7 @@
                 color: $fontWeightColor;
                 .devops-icon {
                     font-size: 10px;
-                    color: $fontLigtherColor;
+                    color: $fontLighterColor;
                 }
                 .menu-btn {
                     position: relative;
@@ -287,22 +296,22 @@
             .form-group {
                 margin-bottom: 15px;
                 ::-webkit-input-placeholder { /* WebKit browsers */
-                    color: $fontLigtherColor;
+                    color: $fontLighterColor;
                 }
                 :-moz-placeholder { /* Mozilla Firefox 4 to 18 */
-                    color: $fontLigtherColor;
+                    color: $fontLighterColor;
                 }
                 ::-moz-placeholder { /* Mozilla Firefox 19+ */
-                    color: $fontLigtherColor;
+                    color: $fontLighterColor;
                 }
                 :-ms-input-placeholder { /* Internet Explorer 10+ */
-                    color: $fontLigtherColor;
+                    color: $fontLighterColor;
                 }
                 .input-text {
                     cursor: text;
                 }
                 .devops-icon {
-                    color: $fontLigtherColor;
+                    color: $fontLighterColor;
                     &:hover {
                         color:$fontWeightColor;
                     }

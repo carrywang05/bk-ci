@@ -27,41 +27,73 @@
 
 package com.tencent.devops.worker.common.task
 
-import com.tencent.devops.common.api.util.JsonUtil
-import com.tencent.devops.common.pipeline.pojo.element.ElementAdditionalOptions
+import com.tencent.devops.common.api.exception.TaskExecuteException
+import com.tencent.devops.common.api.pojo.ErrorCode
+import com.tencent.devops.common.api.pojo.ErrorType
+import com.tencent.devops.common.pipeline.dialect.IPipelineDialect
+import com.tencent.devops.common.pipeline.dialect.PipelineDialectUtil
+import com.tencent.devops.common.pipeline.pojo.BuildParameters
 import com.tencent.devops.process.pojo.BuildTask
 import com.tencent.devops.process.pojo.BuildVariables
+import com.tencent.devops.process.utils.PIPELINE_DIALECT
 import com.tencent.devops.worker.common.env.BuildEnv
 import com.tencent.devops.worker.common.env.BuildType
+import com.tencent.devops.worker.common.logger.LoggerService
 import java.io.File
+import java.util.regex.Pattern
+import java.util.stream.Collectors
 
-@Suppress("NestedBlockDepth")
+@Suppress("NestedBlockDepth", "TooManyFunctions")
 abstract class ITask {
-
     private val environment = HashMap<String, String>()
 
     private val monitorData = HashMap<String, Any>()
+
+    private var platformCode: String? = null
+
+    private var platformErrorCode: Int? = null
+
+    private var finishKillFlag: Boolean? = null
+
+    /* 存储常量的key */
+    private lateinit var constVar: List<String>
+    /*  */
+    private lateinit var dialect: IPipelineDialect
+
+    companion object {
+        // 有的插件输出的变量会带taskId,taskId包含-,所以需要保留
+        private const val ENGLISH_NAME_PATTERN = "[A-Za-z_0-9.-]*"
+    }
 
     fun run(
         buildTask: BuildTask,
         buildVariables: BuildVariables,
         workspace: File
     ) {
-        val params = buildTask.params
-        if (params != null && null != params["additionalOptions"]) {
-            val additionalOptionsStr = params["additionalOptions"]
-            val additionalOptions = JsonUtil.toOrNull(additionalOptionsStr, ElementAdditionalOptions::class.java)
-            if (additionalOptions?.enableCustomEnv == true && additionalOptions.customEnv?.isNotEmpty() == true) {
-                val variables = buildTask.buildVariable?.toMutableMap()
-                if (variables != null) {
-                    additionalOptions.customEnv!!.forEach {
-                        if (!it.key.isNullOrBlank()) variables[it.key!!] = it.value ?: ""
-                    }
-                    return execute(buildTask.copy(buildVariable = variables), buildVariables, workspace)
-                }
-            }
-        }
+        constVar = buildVariables.variablesWithType.stream()
+            .filter { it.readOnly == true }
+            .map { it.key }
+            .collect(Collectors.toList())
+        dialect = PipelineDialectUtil.getPipelineDialect(buildVariables.variables[PIPELINE_DIALECT])
         execute(buildTask, buildVariables, workspace)
+    }
+
+    /**
+     *  如果之前的插件不是在构建机执行, 会缺少环境变量
+     */
+    private fun combineVariables(
+        buildTask: BuildTask,
+        buildVariables: BuildVariables
+    ): BuildVariables {
+        val buildVariable = buildTask.buildVariable ?: return buildVariables
+        val newVariables = buildVariables.variables.plus(buildVariable)
+        val buildParameters = buildVariable.map { (key, value) ->
+            BuildParameters(key, value)
+        }
+        // 以key去重, 并以buildTask中的为准
+        val newBuildParameters = buildVariables.variablesWithType.associateBy { it.key }
+            .plus(buildParameters.associateBy { it.key })
+        return buildVariables.copy(variables = newVariables, variablesWithType = newBuildParameters.values.toList())
     }
 
     protected abstract fun execute(
@@ -71,6 +103,44 @@ abstract class ITask {
     )
 
     protected fun addEnv(env: Map<String, String>) {
+        var errReadOnlyFlag = false
+        var errChineseVarName = false
+        val errChineseVars = mutableSetOf<String>()
+        env.keys.forEach { key ->
+            if (this::constVar.isInitialized && key in constVar) {
+                LoggerService.addErrorLine("Variable $key is read-only and cannot be modified.")
+                errReadOnlyFlag = true
+            }
+            if (!Pattern.matches(ENGLISH_NAME_PATTERN, key)) {
+                errChineseVars.add(key)
+                errChineseVarName = true
+            }
+        }
+        if (errReadOnlyFlag) {
+            throw TaskExecuteException(
+                errorMsg = "[Finish task] status: false, errorType: ${ErrorType.USER.num}, " +
+                        "errorCode: ${ErrorCode.USER_INPUT_INVAILD}, message: read-only cannot be modified.",
+                errorType = ErrorType.USER,
+                errorCode = ErrorCode.USER_INPUT_INVAILD
+            )
+        }
+        if (this::dialect.isInitialized) {
+            if (errChineseVarName && !dialect.supportChineseVarName()) {
+                LoggerService.addWarnLine(
+                    "Variable $errChineseVars name is illegal,Variable names can only use letters, " +
+                            "numbers and underscores, " +
+                            "and the first character cannot start with a number"
+                )
+                throw TaskExecuteException(
+                    errorMsg = "[Finish task] status: false, errorType: ${ErrorType.USER.num}, " +
+                            "errorCode: ${ErrorCode.USER_INPUT_INVAILD}," +
+                            " message: variable name is illegal.",
+                    errorType = ErrorType.USER,
+                    errorCode = ErrorCode.USER_INPUT_INVAILD
+                )
+            }
+        }
+
         environment.putAll(env)
     }
 
@@ -91,6 +161,30 @@ abstract class ITask {
 
     fun getMonitorData(): Map<String, Any> {
         return monitorData
+    }
+
+    protected fun addPlatformCode(taskPlatformCode: String) {
+        platformCode = taskPlatformCode
+    }
+
+    fun getPlatformCode(): String? {
+        return platformCode
+    }
+
+    protected fun addPlatformErrorCode(taskPlatformErrorCode: Int) {
+        platformErrorCode = taskPlatformErrorCode
+    }
+
+    fun getPlatformErrorCode(): Int? {
+        return platformErrorCode
+    }
+
+    protected fun addFinishKillFlag(taskFinishKillFlag: Boolean) {
+        finishKillFlag = taskFinishKillFlag
+    }
+
+    fun getFinishKillFlag(): Boolean? {
+        return finishKillFlag
     }
 
     protected fun isThirdAgent() = BuildEnv.getBuildType() == BuildType.AGENT

@@ -27,6 +27,8 @@
 
 package com.tencent.devops.store.pojo.atom.enums
 
+import com.tencent.devops.common.api.util.MessageUtil
+
 @Suppress("UNUSED")
 enum class AtomStatusEnum(val status: Int) {
     INIT(0), // 初始化
@@ -41,7 +43,8 @@ enum class AtomStatusEnum(val status: Int) {
     UNDERCARRIAGING(9), // 下架中
     UNDERCARRIAGED(10), // 已下架
     CODECCING(11), // 代码检查中
-    CODECC_FAIL(12); // 代码检查失败
+    CODECC_FAIL(12), // 代码检查失败
+    TESTED(13); // 测试结束(仅分支测试使用)
 
     companion object {
 
@@ -62,5 +65,25 @@ enum class AtomStatusEnum(val status: Int) {
             }
             return INIT.name
         }
+
+        fun getProcessingStatusList(): List<Byte> {
+            return listOf(
+                INIT.status.toByte(),
+                COMMITTING.status.toByte(),
+                BUILDING.status.toByte(),
+                BUILD_FAIL.status.toByte(),
+                TESTING.status.toByte(),
+                AUDITING.status.toByte(),
+                CODECCING.status.toByte(),
+                CODECC_FAIL.status.toByte()
+            )
+        }
+    }
+
+    fun getI18n(language: String): String {
+        return MessageUtil.getMessageByLocale(
+            messageCode = "STORE_ATOM_STATUS_${this.name}",
+            language = language
+        )
     }
 }

@@ -27,7 +27,7 @@
 
 dependencies {
     api("javax.ws.rs:javax.ws.rs-api")
-    api("io.swagger:swagger-annotations")
+    api("io.swagger.core.v3:swagger-annotations")
     api("org.hashids:hashids")
     api("com.fasterxml.jackson.module:jackson-module-kotlin")
     api("com.fasterxml.jackson.core:jackson-databind")
@@ -44,9 +44,13 @@ dependencies {
     api("org.springframework.boot:spring-boot-starter-data-redis")
     api("org.apache.commons:commons-compress")
     api("org.apache.commons:commons-exec")
+    api("org.apache.commons:commons-collections4")
     api("javax.servlet:javax.servlet-api")
     api("javax.validation:validation-api")
     api("com.vdurmont:emoji-java")
     api("org.apache.lucene:lucene-core")
     api("org.apache.commons:commons-csv")
+    api("com.github.ben-manes.caffeine:caffeine")
+    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    api("com.jakewharton:disklrucache")
 }

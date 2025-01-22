@@ -1,0 +1,124 @@
+@font-face {
+	font-family: "permission";
+	src: url("fonts/iconcool.svg#iconcool") format("svg"),
+url("fonts/iconcool.ttf") format("truetype"),
+url("fonts/iconcool.woff") format("woff"),
+url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+.permission-icon {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'permission' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  text-align: center;
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.permission-icon-app-store-fill:before {
+	content: "\e101";
+}
+.permission-icon-search:before {
+	content: "\e102";
+}
+.permission-icon-close:before {
+	content: "\e103";
+}
+.permission-icon-angle-right:before {
+	content: "\e104";
+}
+.permission-icon-close-circle-shape:before {
+	content: "\e105";
+}
+.permission-icon-close-samll:before {
+	content: "\e106";
+}
+.permission-icon-review:before {
+	content: "\e107";
+}
+.permission-icon-quanxianshenqing:before {
+	content: "\e108";
+}
+.permission-icon-wodequanxian:before {
+	content: "\e109";
+}
+.permission-icon-wodeshenqing:before {
+	content: "\e10b";
+}
+.permission-icon-wodeshenpi:before {
+	content: "\e10a";
+}
+.permission-icon-zuzhijiagou_fill:before {
+	content: "\e10c";
+}
+.permission-icon-jiaruxiangmu:before {
+	content: "\e10d";
+}
+.permission-icon-edit:before {
+	content: "\e10e";
+}
+.permission-icon-wodexiangmu:before {
+	content: "\e10f";
+}
+.permission-icon-more-fill:before {
+	content: "\e110";
+}
+.permission-icon-add-fill:before {
+	content: "\e111";
+}
+.permission-icon-warning-circle-fill:before {
+	content: "\e112";
+}
+.permission-icon-down-shape:before {
+	content: "\e113";
+}
+.permission-icon-yonghuzu:before {
+	content: "\e114";
+}
+.permission-icon-yonghu-2:before {
+	content: "\e115";
+}
+.permission-icon-oauth:before {
+	content: "\e116";
+}
+.permission-icon-codelib:before {
+	content: "\e117";
+}
+.permission-icon-user:before {
+	content: "\e118";
+}
+.permission-icon-tishi:before {
+	content: "\e119";
+}
+.permission-icon-permission:before {
+	content: "\e11a";
+}
+.permission-icon-normal:before {
+	content: "\e11b";
+}
+.permission-icon-handover:before {
+	content: "\e11c";
+}
+.permission-icon-info:before {
+	content: "\e11d";
+}
+.permission-icon-unknown:before {
+	content: "\e11e";
+}
+.permission-icon-abnormal:before {
+	content: "\e11f";
+}
+.permission-icon-warning-2:before {
+	content: "\e120";
+}
+.permission-icon-right-shape:before {
+	content: "\e121";
+}

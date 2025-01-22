@@ -1,38 +1,25 @@
 <template>
-    <div class="devops-app">
-        <div
-            v-show="moduleLoading"
-            class="bk-loading"
-            style="position: absolute;"
-        >
-            <div class="bk-loading-wrapper">
-                <div class="bk-loading1">
-                    <div class="point point1" /> <div class="point point2" /> <div class="point point3" /> <div class="point point4" />
-                </div> <div class="bk-loading-title" />
-            </div>
-        </div>
+    <div
+        class="devops-app"
+        v-bkloading="{ isLoading: moduleLoading }"
+    >
         <router-view />
-        <Announcement-dialog />
     </div>
 </template>
 
 <script lang="ts">
     import Vue from 'vue'
     import { Component, Watch } from 'vue-property-decorator'
-    import { State, Action } from 'vuex-class'
-    import AnnouncementDialog from '../components/AnnouncementDialog/index.vue'
+    import { Action, State } from 'vuex-class'
     
-    @Component({
-        components: {
-            AnnouncementDialog
-        }
-    })
+    @Component()
     export default class App extends Vue {
-        @State('fetchError') fetchError
-        @State('moduleLoading') moduleLoading
+        @State fetchError
+        @State moduleLoading
 
         @Action getAnnouncement
         @Action setAnnouncement
+        @Action getPlatformPreData
 
         @Watch('fetchError')
         handleFetchError (e) {
@@ -46,6 +33,7 @@
         }
 
         async created () {
+            this.getPlatformPreData()
             const announce = await this.getAnnouncement()
             if (announce && announce.id) {
                 this.setAnnouncement(announce)

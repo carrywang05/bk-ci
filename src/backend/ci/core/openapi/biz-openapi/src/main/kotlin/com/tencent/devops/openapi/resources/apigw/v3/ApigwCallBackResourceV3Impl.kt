@@ -32,13 +32,14 @@ import com.tencent.devops.common.api.util.DateTimeUtil
 import com.tencent.devops.common.api.util.timestampmilli
 import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.pipeline.event.CallBackEvent
+import com.tencent.devops.common.pipeline.event.CallBackNetWorkRegionType
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.openapi.api.apigw.v3.ApigwCallBackResourceV3
 import com.tencent.devops.process.api.service.ServiceCallBackResource
 import com.tencent.devops.process.pojo.CreateCallBackResult
-import com.tencent.devops.process.pojo.ProjectPipelineCallBack
+import com.tencent.devops.common.pipeline.event.ProjectPipelineCallBack
+import com.tencent.devops.openapi.utils.ApigwParamUtil
 import com.tencent.devops.process.pojo.ProjectPipelineCallBackHistory
-import com.tencent.devops.process.pojo.pipeline.enums.CallBackNetWorkRegionType
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 
@@ -56,6 +57,7 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
         event: CallBackEvent,
         secretToken: String?
     ): Result<Boolean> {
+        logger.info("OPENAPI_CALLBACK_V3|$userId|create|$projectId|$url|$region|$event|$secretToken")
         return client.get(ServiceCallBackResource::class).create(
             userId = userId,
             projectId = projectId,
@@ -76,6 +78,7 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
         event: String,
         secretToken: String?
     ): Result<CreateCallBackResult> {
+        logger.info("OPENAPI_CALLBACK_V3|$userId|batch create|$projectId|$url|$region|$event|$secretToken")
         return client.get(ServiceCallBackResource::class).batchCreate(
             userId = userId,
             projectId = projectId,
@@ -94,11 +97,12 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
         page: Int?,
         pageSize: Int?
     ): Result<Page<ProjectPipelineCallBack>> {
+        logger.info("OPENAPI_CALLBACK_V3|$userId|list|$projectId|$page|$pageSize")
         return client.get(ServiceCallBackResource::class).list(
             userId = userId,
             projectId = projectId,
-            page = page,
-            pageSize = pageSize
+            page = page ?: 1,
+            pageSize = ApigwParamUtil.standardSize(pageSize) ?: 20
         )
     }
 
@@ -109,6 +113,7 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
         projectId: String,
         id: Long
     ): Result<Boolean> {
+        logger.info("OPENAPI_CALLBACK_V3|$userId|remove|$projectId|$id")
         return client.get(ServiceCallBackResource::class).remove(
             userId = userId,
             projectId = projectId,
@@ -128,6 +133,10 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
         page: Int?,
         pageSize: Int?
     ): Result<Page<ProjectPipelineCallBackHistory>> {
+        logger.info(
+            "OPENAPI_CALLBACK_V3|$userId|list history|$projectId|$url|$event|$startTime|$endTime|$page" +
+                "|$pageSize"
+        )
         return client.get(ServiceCallBackResource::class).listHistory(
             userId = userId,
             projectId = projectId,
@@ -143,8 +152,8 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
             } else {
                 DateTimeUtil.stringToLocalDateTime(endTime).timestampmilli()
             },
-            page = page,
-            pageSize = pageSize
+            page = page ?: 1,
+            pageSize = ApigwParamUtil.standardSize(pageSize) ?: 20
         )
     }
 
@@ -155,6 +164,7 @@ class ApigwCallBackResourceV3Impl @Autowired constructor(
         projectId: String,
         id: Long
     ): Result<Boolean> {
+        logger.info("OPENAPI_CALLBACK_V3|$userId|retry|$projectId|$id")
         return client.get(ServiceCallBackResource::class).retry(
             userId = userId,
             projectId = projectId,

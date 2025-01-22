@@ -62,10 +62,13 @@ class RepositoryUserService @Autowired constructor(
      * @param projectCode 项目代码
      * @param repositoryHashId 代码库HashId
      */
-    fun updateRepositoryUserInfo(userId: String, projectCode: String, repositoryHashId: String): Result<Boolean> {
+    fun updateRepositoryUserInfo(
+        userId: String,
+        projectCode: String,
+        repositoryHashId: String
+    ): Result<Boolean> {
         val repositoryId = HashUtil.decodeOtherIdToLong(repositoryHashId)
-        val repositoryRecord = repositoryDao.get(dslContext, repositoryId, projectCode)
-        logger.info("updateRepositoryUserInfo repositoryRecord is:$repositoryRecord")
+        val repositoryRecord = repositoryDao.get(dslContext, repositoryId)
         when (repositoryRecord.type) {
             ScmType.CODE_SVN.name -> {
                 repositoryCodeSvnDao.updateRepositoryInfo(dslContext, repositoryId, UpdateRepositoryInfoRequest(userId))

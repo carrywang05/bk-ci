@@ -30,25 +30,36 @@ package com.tencent.devops.common.pipeline.type.agent
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.tencent.devops.common.api.util.EnvUtils
 import com.tencent.devops.common.pipeline.type.BuildType
-import com.tencent.devops.common.pipeline.type.DispatchType
 
 data class ThirdPartyAgentEnvDispatchType(
-    @JsonProperty("value") var envName: String,
-    var workspace: String?,
-    val agentType: AgentType = AgentType.NAME
-) : DispatchType(
-    envName
+    @JsonProperty("value")
+    var envName: String,
+    override var workspace: String?,
+    // 共享环境时必填，值为提供共享环境的项目id
+    var envProjectId: String?,
+    override val agentType: AgentType = AgentType.NAME,
+    override val dockerInfo: ThirdPartyAgentDockerInfo?,
+    override var reusedInfo: ReusedInfo?
+) : ThirdPartyAgentDispatch(
+    value = envName,
+    workspace = workspace,
+    agentType = agentType,
+    dockerInfo = dockerInfo,
+    reusedInfo = reusedInfo
 ) {
     override fun cleanDataBeforeSave() {
         this.envName = this.envName.trim()
+        this.envProjectId = this.envProjectId?.trim()
         this.workspace = this.workspace?.trim()
     }
 
     override fun replaceField(variables: Map<String, String>) {
         envName = EnvUtils.parseEnv(envName, variables)
+        envProjectId = EnvUtils.parseEnv(envProjectId, variables)
         if (!workspace.isNullOrBlank()) {
             workspace = EnvUtils.parseEnv(workspace!!, variables)
         }
+        dockerInfo?.replaceField(variables)
     }
 
     override fun buildType() = BuildType.valueOf(BuildType.THIRD_PARTY_AGENT_ENV.name)

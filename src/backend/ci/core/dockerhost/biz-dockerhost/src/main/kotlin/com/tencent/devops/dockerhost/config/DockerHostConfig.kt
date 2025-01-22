@@ -51,6 +51,9 @@ class DockerHostConfig {
     @Value("\${dockerCli.volumeWorkspace:/data/devops/workspace}")
     var volumeWorkspace: String? = null
 
+    @Value("\${dockerCli.volumeCommonEnv:/data/devops/common_env}")
+    var volumeCommonEnv: String? = null
+
     @Value("\${dockerCli.volumeProjectShare:/data/devops/share}")
     var volumeProjectShare: String? = null
 
@@ -101,6 +104,9 @@ class DockerHostConfig {
 
     @Value("\${dockerCli.hostPathWorkspace:#{null}}")
     var hostPathWorkspace: String? = null
+
+    @Value("\${dockerCli.hostPathCommonEnv:#{null}}")
+    var hostPathCommonEnv: String? = null
 
     @Value("\${dockerCli.hostPathProjectShare:#{null}}")
     var hostPathProjectShare: String? = null
@@ -254,4 +260,22 @@ class DockerHostConfig {
      */
     @Value("\${codecc.dockerRun.log:false}")
     var dockerRunLog: Boolean? = false
+
+    /**
+     * bazel overlayfs lower层路径
+     */
+    @Value("\${dockerCli.bazelLowerPath:/data/bazelcache}")
+    var bazelLowerPath: String? = null
+
+    /**
+     * bazel overlayfs upper路径
+     */
+    @Value("\${dockerCli.bazelUpperPath:/data/landun/thirdparty/bazel_cache}")
+    var bazelUpperPath: String? = null
+
+    /**
+     * bazel 缓存容器路径
+     */
+    @Value("\${dockerCli.bazelContainerPath:/root/.bazelcache}")
+    var bazelContainerPath: String? = null
 }

@@ -27,6 +27,7 @@
 
 package com.tencent.devops.misc.dao.environment
 
+import com.tencent.devops.common.db.utils.skipCheck
 import com.tencent.devops.environment.pojo.enums.NodeStatus
 import com.tencent.devops.environment.pojo.enums.NodeType
 import com.tencent.devops.model.environment.tables.TNode
@@ -58,55 +59,11 @@ class EnvironmentNodeDao {
         }
     }
 
-    fun batchDeleteNode(dslContext: DSLContext, projectId: String, nodeIds: List<Long>) {
-        if (nodeIds.isEmpty()) {
-            return
-        }
-
-        with(TNode.T_NODE) {
-            dslContext.deleteFrom(this)
-                .where(PROJECT_ID.eq(projectId))
-                .and(NODE_ID.`in`(nodeIds))
-                .execute()
-        }
-    }
-
-    fun listDevCloudNodesByTaskId(dslContext: DSLContext, taskId: Long): List<TNodeRecord> {
-        with(TNode.T_NODE) {
-            return dslContext.selectFrom(this)
-                .where(NODE_TYPE.eq(NodeType.DEVCLOUD.name)).and(TASK_ID.eq(taskId))
-                .fetch()
-        }
-    }
-
-    fun deleteDevCloudNodesByTaskId(dslContext: DSLContext, taskId: Long) {
-        with(TNode.T_NODE) {
-            dslContext.deleteFrom(this)
-                .where(NODE_TYPE.eq(NodeType.DEVCLOUD.name)).and(TASK_ID.eq(taskId))
-                .and(NODE_STATUS.eq(NodeStatus.DELETED.name))
-                .execute()
-        }
-    }
-
-    fun updateNode(dslContext: DSLContext, allCmdbNodes: TNodeRecord) {
-        dslContext.batchUpdate(allCmdbNodes).execute()
-    }
-
-    fun listAllServerNodes(dslContext: DSLContext): List<TNodeRecord> {
-        with(TNode.T_NODE) {
-            return dslContext.selectFrom(this)
-                .where(NODE_TYPE.`in`(NodeType.CC.name,
-                    NodeType.CMDB.name,
-                    NodeType.OTHER.name,
-                    NodeType.DEVCLOUD.name))
-                .fetch()
-        }
-    }
-
     fun listAllNodesByType(dslContext: DSLContext, nodeType: NodeType): List<TNodeRecord> {
         with(TNode.T_NODE) {
             return dslContext.selectFrom(this)
                 .where(NODE_TYPE.eq(nodeType.name))
+                .skipCheck()
                 .fetch()
         }
     }

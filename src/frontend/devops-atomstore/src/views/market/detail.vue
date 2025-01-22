@@ -1,14 +1,45 @@
 <template>
-    <article class="detail-home" v-bkloading="{ isLoading }">
-        <bread-crumbs :bread-crumbs="navList" :type="type">
-            <router-link :to="{ name: 'atomWork' }" class="g-title-work"> {{ $t('store.工作台') }} </router-link>
+    <article
+        class="detail-home"
+        v-bkloading="{ isLoading }"
+    >
+        <bread-crumbs
+            :bread-crumbs="navList"
+            :type="type"
+        >
+            <router-link
+                :to="{ name: 'atomWork' }"
+                class="g-title-work"
+            >
+                {{ $t('store.工作台') }}
+            </router-link>
         </bread-crumbs>
 
-        <main class="store-main" v-if="!isLoading">
-            <component :is="`${type}Info`" :detail="detail" class="detail-info" :current-tab.sync="currentTab"></component>
-            <bk-tab type="unborder-card" :active.sync="currentTab" class="detail-tabs">
-                <bk-tab-panel :name="tab.name" :label="tab.label" v-for="(tab, index) in tabList[type].filter(x => !x.hidden)" :key="index">
-                    <component :is="tab.componentName" v-bind="tab.bindData"></component>
+        <main
+            class="store-main"
+            v-if="!isLoading"
+        >
+            <component
+                :is="`${type}Info`"
+                :detail="detail"
+                class="detail-info"
+                :current-tab.sync="currentTab"
+            ></component>
+            <bk-tab
+                type="unborder-card"
+                :active.sync="currentTab"
+                class="detail-tabs"
+            >
+                <bk-tab-panel
+                    :name="tab.name"
+                    :label="tab.label"
+                    v-for="(tab, index) in tabList[type].filter(x => !x.hidden)"
+                    :key="index"
+                >
+                    <component
+                        :is="tab.componentName"
+                        v-bind="tab.bindData"
+                    ></component>
                 </bk-tab-panel>
             </bk-tab>
         </main>
@@ -16,6 +47,7 @@
 </template>
 
 <script>
+    import api from '@/api'
     import { mapActions, mapGetters } from 'vuex'
     import breadCrumbs from '@/components/bread-crumbs.vue'
     import atomInfo from '../../components/common/detail-info/atom'
@@ -24,6 +56,8 @@
     import detailScore from '../../components/common/detailTab/detailScore'
     import codeSection from '../../components/common/detailTab/codeSection'
     import yamlDetail from '../../components/common/detailTab/yamlDetail'
+    import outputDetail from '../../components/common/detailTab/outputDetail'
+    import qualityDetail from '../../components/common/detailTab/qualityDetail'
 
     export default {
         components: {
@@ -33,7 +67,9 @@
             detailScore,
             codeSection,
             breadCrumbs,
-            yamlDetail
+            yamlDetail,
+            outputDetail,
+            qualityDetail
         },
 
         data () {
@@ -44,7 +80,7 @@
         },
 
         computed: {
-            ...mapGetters('store', { 'markerQuey': 'getMarketQuery', 'detail': 'getDetail' }),
+            ...mapGetters('store', { markerQuey: 'getMarketQuery', detail: 'getDetail' }),
 
             detailCode () {
                 return this.$route.params.code
@@ -58,8 +94,9 @@
                 return {
                     atom: [
                         { componentName: 'detailScore', label: this.$t('store.概述'), name: 'des' },
-                        { componentName: 'codeSection', label: this.$t('store.YAMLV1'), name: 'YAML', bindData: { code: this.detail.codeSection, limitHeight: false }, hidden: (!this.detail.yamlFlag || !this.detail.recommendFlag) },
-                        { componentName: 'yamlDetail', label: this.$t('store.YAMLV2'), name: 'YAMLV2', bindData: { code: this.detail.codeSectionV2, limitHeight: false }, hidden: (!this.detail.yamlFlag || !this.detail.recommendFlag) }
+                        { componentName: 'yamlDetail', label: this.$t('store.YAMLV2'), name: 'YAMLV2', bindData: { code: this.detail.codeSectionV2, limitHeight: false, name: 'YAMLV2', currentTab: this.currentTab, getDataFunc: this.getAtomYamlV2 }, hidden: (!this.detail.yamlFlag || !this.detail.recommendFlag) },
+                        { componentName: 'outputDetail', label: this.$t('store.输出参数'), name: 'output', bindData: { outputData: this.detail.outputData, name: 'output', currentTab: this.currentTab, classifyCode: this.detail.classifyCode } },
+                        { componentName: 'qualityDetail', label: this.$t('store.质量红线指标'), name: 'quality', bindData: { qualityData: this.detail.qualityData }, hidden: this.detail.qualityData && !this.detail.qualityData.length }
                     ],
                     template: [
                         { componentName: 'detailScore', label: this.$t('store.概述'), name: 'des' }
@@ -110,7 +147,6 @@
                 'requestImage',
                 'getUserApprovalInfo',
                 'requestImageCategorys',
-                'getAtomYaml',
                 'getAtomYamlV2'
             ]),
 
@@ -135,15 +171,14 @@
                     this.requestAtom(atomCode),
                     this.requestAtomStatistic({ storeCode: atomCode, storeType: 'ATOM' }),
                     this.getUserApprovalInfo(atomCode),
-                    this.getAtomYaml({ atomCode }),
-                    this.getAtomYamlV2({ atomCode })
-                ]).then(([atomDetail, atomStatic, userAppInfo, yaml, yamlV2]) => {
+                    this.getQualityData(atomCode)
+                ]).then(([atomDetail, atomStatic, userAppInfo, quality]) => {
                     const detail = atomDetail || {}
                     detail.detailId = atomDetail.atomId
                     detail.recentExecuteNum = atomStatic.recentExecuteNum || 0
+                    detail.hotFlag = atomStatic.hotFlag
                     detail.approveStatus = (userAppInfo || {}).approveStatus
-                    detail.codeSection = yaml
-                    detail.codeSectionV2 = yamlV2
+                    detail.qualityData = quality
                     this.setDetail(detail)
                 })
             },
@@ -174,6 +209,10 @@
                     detail.needInstallToProject = setting.needInstallToProject
                     this.setDetail(detail)
                 })
+            },
+
+            getQualityData () {
+                return api.requestAtomQuality(this.detailCode)
             }
         }
     }

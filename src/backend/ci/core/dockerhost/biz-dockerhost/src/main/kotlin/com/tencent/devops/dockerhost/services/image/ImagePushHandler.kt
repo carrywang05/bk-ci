@@ -1,17 +1,24 @@
 package com.tencent.devops.dockerhost.services.image
 
 import com.github.dockerjava.api.async.ResultCallback
+import com.github.dockerjava.api.exception.DockerClientException
 import com.github.dockerjava.api.model.AuthConfig
 import com.github.dockerjava.api.model.PushResponseItem
 import com.github.dockerjava.api.model.ResponseItem
+import com.tencent.devops.common.api.constant.BK_PUSH_IMAGE
+import com.tencent.devops.common.web.utils.I18nUtil
+import com.tencent.devops.dockerhost.config.DockerHostConfig
 import com.tencent.devops.dockerhost.dispatch.DockerHostBuildResourceApi
+import com.tencent.devops.dockerhost.services.Handler
+import java.util.concurrent.TimeUnit
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
 class ImagePushHandler(
+    dockerHostConfig: DockerHostConfig,
     private val dockerHostBuildApi: DockerHostBuildResourceApi
-) : Handler<ImageHandlerContext>() {
+) : Handler<ImageHandlerContext>(dockerHostConfig, dockerHostBuildApi) {
     override fun handlerRequest(handlerContext: ImageHandlerContext) {
         with(handlerContext) {
             imageTagSet.parallelStream().forEach {
@@ -24,10 +31,10 @@ class ImagePushHandler(
                 dockerClient.pushImageCmd(it)
                     .withAuthConfig(authConfig)
                     .exec(MyPushImageResultCallback(buildId, pipelineTaskId, dockerHostBuildApi))
-                    .awaitCompletion()
+                    .awaitCompletion(20, TimeUnit.MINUTES)
             }
 
-            nextHandler?.handlerRequest(this)
+            nextHandler.get()?.handlerRequest(this)
         }
     }
 
@@ -36,6 +43,8 @@ class ImagePushHandler(
         private val elementId: String?,
         private val dockerHostBuildApi: DockerHostBuildResourceApi
     ) : ResultCallback.Adapter<PushResponseItem>() {
+        private var latestItem: PushResponseItem? = null
+
         private val totalList = mutableListOf<Long>()
         private val step = mutableMapOf<Int, Long>()
         override fun onNext(item: PushResponseItem?) {
@@ -55,13 +64,37 @@ class ImagePushHandler(
                     dockerHostBuildApi.postLog(
                         buildId,
                         false,
-                        "正在推送镜像,第${lays}层，进度：$currentProgress%",
+                        I18nUtil.getCodeLanMessage(
+                            messageCode = BK_PUSH_IMAGE,
+                            params = arrayOf("$lays", "$currentProgress"),
+                            language = I18nUtil.getDefaultLocaleLanguage()
+                        ),
                         elementId
                     )
                     step[lays] = currentProgress
                 }
             }
+
+            if (item != null && item.errorDetail == null) {
+                dockerHostBuildApi.postLog(
+                    buildId,
+                    false,
+                    item.status ?: "",
+                    elementId
+                )
+            }
+
+            this.latestItem = item
             super.onNext(item)
+        }
+
+        override fun throwFirstError() {
+            super.throwFirstError()
+            if (latestItem == null) {
+                throw DockerClientException("Could not push image")
+            } else if (latestItem?.isErrorIndicated == true) {
+                throw DockerClientException("Could not push image: " + latestItem!!.errorDetail?.message)
+            }
         }
 
         private fun canPrintLog(text: ResponseItem.ProgressDetail?): Boolean {

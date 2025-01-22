@@ -28,16 +28,16 @@
 package com.tencent.devops.process.engine.pojo.event
 
 import com.tencent.devops.common.event.annotation.Event
-import com.tencent.devops.common.event.dispatcher.pipeline.mq.MQ
+import com.tencent.devops.common.event.pojo.pipeline.IPipelineEvent
+import com.tencent.devops.common.stream.constants.StreamBinding
 import com.tencent.devops.common.event.enums.ActionType
-import com.tencent.devops.common.event.pojo.pipeline.IPipelineRoutableEvent
 
 /**
  *
  *
  * @version 1.0
  */
-@Event(MQ.ENGINE_PROCESS_LISTENER_EXCHANGE, MQ.ROUTE_PIPELINE_BUILD_TASK_START)
+@Event(StreamBinding.PIPELINE_BUILD_TASK_START)
 data class PipelineBuildAtomTaskEvent(
     override val source: String,
     override val projectId: String,
@@ -46,12 +46,12 @@ data class PipelineBuildAtomTaskEvent(
     val buildId: String,
     val stageId: String,
     val containerId: String,
+    val containerHashId: String?,
     val containerType: String,
     val taskId: String,
     val taskParam: MutableMap<String, Any>,
     override var actionType: ActionType,
     override var delayMills: Int = 0,
-    override var routeKeySuffix: String? = null,
     val reason: String? = null,
     /**
      * 0 表示 没有错误
@@ -60,5 +60,6 @@ data class PipelineBuildAtomTaskEvent(
     /**
      * null 表示没有错误 see [com.tencent.devops.common.api.pojo.ErrorType.name]
      */
-    var errorTypeName: String? = null
-) : IPipelineRoutableEvent(routeKeySuffix, actionType, source, projectId, pipelineId, userId, delayMills)
+    var errorTypeName: String? = null,
+    val executeCount: Int = 1
+) : IPipelineEvent(actionType, source, projectId, pipelineId, userId, delayMills)

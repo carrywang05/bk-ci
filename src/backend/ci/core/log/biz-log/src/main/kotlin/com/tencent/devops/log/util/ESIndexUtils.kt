@@ -29,8 +29,8 @@ package com.tencent.devops.log.util
 
 import com.tencent.devops.common.log.pojo.message.LogMessageWithLineNo
 import org.elasticsearch.common.settings.Settings
-import org.elasticsearch.common.xcontent.XContentBuilder
-import org.elasticsearch.common.xcontent.XContentFactory
+import org.elasticsearch.xcontent.XContentBuilder
+import org.elasticsearch.xcontent.XContentFactory
 
 object ESIndexUtils {
 
@@ -53,10 +53,12 @@ object ESIndexUtils {
             .startObject("tag").field("type", "keyword").endObject()
             .startObject("subTag").field("type", "keyword").endObject()
             .startObject("jobId").field("type", "keyword").endObject()
+            .startObject("containerHashId").field("type", "keyword").endObject()
+            .startObject("stepId").field("type", "keyword").endObject()
             .startObject("executeCount").field("type", "keyword").endObject()
-            .startObject("logType").field("type", "text").endObject()
+            .startObject("logType").field("type", "keyword").endObject()
             .startObject("message").field("type", "text")
-            .field("analyzer", "standard")
+            .field("index", false)
             .endObject()
             .endObject()
             .endObject()
@@ -74,7 +76,9 @@ object ESIndexUtils {
             .field("timestamp", logMessage.timestamp)
             .field("tag", logMessage.tag)
             .field("subTag", logMessage.subTag)
-            .field("jobId", logMessage.jobId)
+            .field("containerHashId", logMessage.containerHashId)
+            .field("jobId", logMessage.jobId ?: "")
+            .field("stepId", logMessage.stepId ?: "")
             .field("logType", logMessage.logType.name)
             .field("executeCount", logMessage.executeCount)
             .endObject()

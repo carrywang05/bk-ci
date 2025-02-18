@@ -27,11 +27,15 @@
 
 package com.tencent.devops.scm
 
+import com.tencent.devops.scm.code.git.api.GitHook
 import com.tencent.devops.scm.pojo.GitCommit
+import com.tencent.devops.scm.pojo.GitCommitReviewInfo
 import com.tencent.devops.scm.pojo.GitDiff
 import com.tencent.devops.scm.pojo.GitMrChangeInfo
 import com.tencent.devops.scm.pojo.GitMrInfo
 import com.tencent.devops.scm.pojo.GitMrReviewInfo
+import com.tencent.devops.scm.pojo.GitProjectInfo
+import com.tencent.devops.scm.pojo.LoginSession
 import com.tencent.devops.scm.pojo.RevisionInfo
 
 @Suppress("ALL")
@@ -41,14 +45,24 @@ interface IScm {
     val url: String
 
     fun getLatestRevision(): RevisionInfo
-    fun getBranches(search: String? = null): List<String>
+    fun getBranches(
+        search: String? = null,
+        page: Int = 1,
+        pageSize: Int = 20
+    ): List<String>
+
     fun getTags(search: String? = null): List<String>
+
     // This is to check if the token & private key legal
     fun checkTokenAndPrivateKey()
 
     fun checkTokenAndUsername()
 
     fun addWebHook(hookUrl: String)
+
+    fun getWebHooks(): List<GitHook> = emptyList()
+
+    fun updateWebHook(hookId: Long, hookUrl: String) = Unit
 
     fun createBranch(branch: String, ref: String) {}
     fun deleteBranch(branch: String) {}
@@ -59,8 +73,10 @@ interface IScm {
         targetUrl: String,
         context: String,
         description: String,
-        block: Boolean
+        block: Boolean,
+        targetBranch: List<String>?
     )
+
     fun addMRComment(mrId: Long, comment: String)
 
     fun lock(repoName: String, applicant: String, subpath: String)
@@ -74,4 +90,12 @@ interface IScm {
     fun getMrInfo(mrId: Long): GitMrInfo? = null
 
     fun getMrReviewInfo(mrId: Long): GitMrReviewInfo? = null
+
+    fun getMrCommitList(mrId: Long, page: Int, size: Int) = emptyList<GitCommit>()
+
+    fun getProjectInfo(projectName: String): GitProjectInfo? = null
+
+    fun getCommitReviewInfo(crId: Long): GitCommitReviewInfo? = null
+
+    fun getLoginSession(): LoginSession? = null
 }

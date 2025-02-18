@@ -34,18 +34,21 @@ import com.tencent.devops.common.log.utils.BuildLogPrinter
 import com.tencent.devops.common.pipeline.enums.BuildStatus
 import com.tencent.devops.common.pipeline.enums.ChannelCode
 import com.tencent.devops.common.pipeline.enums.StartType
-import com.tencent.devops.common.redis.RedisLock
 import com.tencent.devops.common.redis.RedisOperation
+import com.tencent.devops.common.web.utils.I18nUtil
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_QUEUE
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_BRANCH
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_PROJECT_ID
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_SOURCE_REPO_NAME
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_TARGET_BRANCH
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_TARGET_PROJECT_ID
+import com.tencent.devops.common.webhook.pojo.code.PIPELINE_WEBHOOK_TARGET_REPO_NAME
 import com.tencent.devops.process.api.service.ServiceBuildResource
+import com.tencent.devops.process.constant.ProcessMessageCode.BK_TRIGGERED_BY_GIT_EVENT_PLUGIN
+import com.tencent.devops.process.engine.control.lock.PipelineWebHookQueueLock
 import com.tencent.devops.process.engine.dao.PipelineWebHookQueueDao
 import com.tencent.devops.process.engine.pojo.PipelineWebHookQueue
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_QUEUE
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_SOURCE_BRANCH
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_SOURCE_PROJECT_ID
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_SOURCE_REPO_NAME
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_TARGET_BRANCH
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_TARGET_PROJECT_ID
-import com.tencent.devops.process.utils.PIPELINE_WEBHOOK_TARGET_REPO_NAME
+import com.tencent.devops.project.api.service.ServiceAllocIdResource
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
@@ -127,6 +130,7 @@ class PipelineWebHookQueueService @Autowired constructor(
                 logger.info("webhook queue|$projectId|$pipelineId|$buildId is ${buildInfo.status}, delete")
                 pipelineWebHookQueueDao.deleteByBuildIds(
                     dslContext = dslContext,
+                    projectId = projectId,
                     buildIds = listOf(buildId)
                 )
             }
@@ -147,26 +151,28 @@ class PipelineWebHookQueueService @Autowired constructor(
                 with(pipelineWebHookQueue) {
                     val webHookBuildHistory = pipelineWebHookQueueDao.getWebHookBuildHistory(
                         dslContext = dslContext,
+                        projectId = projectId,
                         pipelineId = pipelineId,
                         sourceProjectId = sourceProjectId,
                         sourceBranch = sourceBranch,
                         targetProjectId = targetProjectId,
                         targetBranch = targetBranch
                     )
+                    val id = client.get(ServiceAllocIdResource::class).generateSegmentId("PIPELINE_WEBHOOK_QUEUE").data
                     if (webHookBuildHistory != null && webHookBuildHistory.isNotEmpty()) {
                         webHookBuildHistory.forEach { queue ->
                             logger.info("webhook queue on webhook trigger|$projectId|$pipelineId|${queue.buildId} " +
                                 "be canceled because of $buildId")
                             buildLogPrinter.addYellowLine(
                                 buildId = queue.buildId,
-                                message = "因【Git事件触发】插件中，" +
-                                    "MR Request Hook勾选了【MR为同源同目标分支时，等待队列只保留最新触发的任务】配置，" +
-                                    "该次构建已被新触发的构建" +
-                                    "[<a target='_blank' href='" + // #4796 日志展示去掉链接上的域名前缀
-                                    "/console/pipeline/$projectId/$pipelineId/detail/$buildId'>$buildId</a>]覆盖",
+                                message = I18nUtil.getCodeLanMessage(BK_TRIGGERED_BY_GIT_EVENT_PLUGIN) +
+                                        "[<a target='_blank' href='" + // #4796 日志展示去掉链接上的域名前缀
+                                    "/console/pipeline/$projectId/$pipelineId/detail/$buildId'>$buildId</a>]overlay",
                                 tag = "",
-                                jobId = "",
-                                executeCount = 1
+                                containerHashId = "",
+                                executeCount = 1,
+                                jobId = null,
+                                stepId = null
                             )
                             client.get(ServiceBuildResource::class).serviceShutdown(
                                 pipelineId = pipelineId,
@@ -179,6 +185,7 @@ class PipelineWebHookQueueService @Autowired constructor(
                             val context = DSL.using(configuration)
                             pipelineWebHookQueueDao.deleteByBuildIds(
                                 dslContext = context,
+                                projectId = projectId,
                                 buildIds = webHookBuildHistory.map { it.buildId }
                             )
                             pipelineWebHookQueueDao.save(
@@ -191,7 +198,8 @@ class PipelineWebHookQueueService @Autowired constructor(
                                 targetProjectId = targetProjectId,
                                 targetRepoName = targetRepoName,
                                 targetBranch = targetBranch,
-                                buildId = buildId
+                                buildId = buildId,
+                                id = id
                             )
                         }
                     } else {
@@ -205,7 +213,8 @@ class PipelineWebHookQueueService @Autowired constructor(
                             targetProjectId = targetProjectId,
                             targetRepoName = targetRepoName,
                             targetBranch = targetBranch,
-                            buildId = buildId
+                            buildId = buildId,
+                            id = id
                         )
                     }
                 }
@@ -243,16 +252,13 @@ class PipelineWebHookQueueService @Autowired constructor(
             )
             return
         }
-        val lock = RedisLock(
+        val lock = PipelineWebHookQueueLock(
             redisOperation = redisOperation,
-            lockKey = getRedisLockKey(
-                pipelineId = pipelineId,
-                sourceProjectId = sourceProjectId,
-                sourceBranch = sourceBranch,
-                targetProjectId = targetProjectId,
-                targetBranch = targetBranch
-            ),
-            expiredTimeInSeconds = 30
+            pipelineId = pipelineId,
+            sourceProjectId = sourceProjectId,
+            sourceBranch = sourceBranch,
+            targetProjectId = targetProjectId,
+            targetBranch = targetBranch
         )
         try {
             lock.lock()
@@ -271,15 +277,5 @@ class PipelineWebHookQueueService @Autowired constructor(
         } finally {
             lock.unlock()
         }
-    }
-
-    private fun getRedisLockKey(
-        pipelineId: String,
-        sourceProjectId: Long,
-        sourceBranch: String,
-        targetProjectId: Long,
-        targetBranch: String
-    ): String {
-        return "lock:webhook:queue:$pipelineId:$sourceProjectId:$sourceBranch:$targetProjectId:$targetBranch"
     }
 }

@@ -27,231 +27,173 @@
 
 package com.tencent.devops.process.engine.service
 
-import com.tencent.devops.common.api.exception.ErrorCodeException
-import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.api.util.Watcher
+import com.tencent.devops.common.api.util.timestamp
 import com.tencent.devops.common.client.Client
-import com.tencent.devops.common.pipeline.enums.BuildStatus
+import com.tencent.devops.common.pipeline.Model
+import com.tencent.devops.common.pipeline.enums.BuildFormPropertyType
+import com.tencent.devops.common.pipeline.pojo.BuildParameters
 import com.tencent.devops.common.pipeline.pojo.element.Element
-import com.tencent.devops.common.pipeline.pojo.element.ElementAdditionalOptions
 import com.tencent.devops.common.pipeline.pojo.element.ElementBaseInfo
-import com.tencent.devops.common.pipeline.pojo.element.ElementPostInfo
-import com.tencent.devops.common.pipeline.pojo.element.RunCondition
 import com.tencent.devops.common.pipeline.pojo.element.market.MarketBuildAtomElement
 import com.tencent.devops.common.pipeline.pojo.element.market.MarketBuildLessAtomElement
-import com.tencent.devops.common.redis.RedisOperation
+import com.tencent.devops.common.pipeline.pojo.element.quality.QualityGateInElement
+import com.tencent.devops.common.pipeline.pojo.element.quality.QualityGateOutElement
+import com.tencent.devops.common.pipeline.utils.ElementUtils
+import com.tencent.devops.common.service.utils.LogUtils
 import com.tencent.devops.process.engine.cfg.ModelTaskIdGenerator
-import com.tencent.devops.store.api.atom.ServiceMarketAtomResource
-import com.tencent.devops.store.pojo.atom.AtomPostInfo
-import com.tencent.devops.store.pojo.atom.AtomPostReqItem
-import com.tencent.devops.store.pojo.common.ATOM_POST_CONDITION
-import com.tencent.devops.store.pojo.common.ATOM_POST_ENTRY_PARAM
-import com.tencent.devops.store.pojo.common.ATOM_POST_FLAG
-import com.tencent.devops.store.pojo.common.ATOM_POST_NORMAL_PROJECT_FLAG_KEY_PREFIX
-import com.tencent.devops.store.pojo.common.ATOM_POST_VERSION_TEST_FLAG_KEY_PREFIX
+import com.tencent.devops.process.engine.utils.QualityUtils
+import com.tencent.devops.process.template.service.TemplateService
+import com.tencent.devops.quality.api.v2.ServiceQualityRuleResource
+import com.tencent.devops.quality.api.v2.pojo.response.QualityRuleMatchTask
+import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 
-/**
- * 流水线element相关的服务
- * @version 1.0
- */
-@Suppress("ALL")
+@Suppress("LongParameterList", "LongMethod", "ComplexMethod")
 @Service
 class PipelineElementService @Autowired constructor(
     private val modelTaskIdGenerator: ModelTaskIdGenerator,
-    private val redisOperation: RedisOperation,
+    private val templateService: TemplateService,
+    private val pipelinePostElementService: PipelinePostElementService,
     private val client: Client
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(PipelineElementService::class.java)
     }
 
-    @Value("\${pipeline.atom.postPrompt:POST：}")
-    private val postPrompt: String = "POST："
-
-    fun handlePostElements(
+    fun fillElementWhenNewBuild(
+        model: Model,
         projectId: String,
-        elementItemList: MutableList<ElementBaseInfo>,
-        originalElementList: List<Element>,
-        finalElementList: MutableList<Element>,
+        pipelineId: String,
         startValues: Map<String, String>? = null,
-        finallyStage: Boolean
-    ): MutableList<Element> {
-        logger.info("handlePostElements projectId:$projectId,elementItemList:$elementItemList")
-        val allPostElements = mutableListOf<ElementPostInfo>()
-        val noCacheAtomItems = mutableSetOf<AtomPostReqItem>()
-        val noCacheElementMap = mutableMapOf<String, ElementBaseInfo>()
-        elementItemList.forEach { elementItem ->
-            val elementId = elementItem.elementId
-            val atomCode = elementItem.atomCode
-            val version = elementItem.version
-            val atomVersionTestFlag = redisOperation.hget("$ATOM_POST_VERSION_TEST_FLAG_KEY_PREFIX:$atomCode", version)
-            val atomPostInfo = redisOperation.hget("$ATOM_POST_NORMAL_PROJECT_FLAG_KEY_PREFIX:$atomCode", version)
-            val flag = version.contains("*") && (atomVersionTestFlag == null || atomVersionTestFlag.toBoolean())
-            if (flag || atomPostInfo == null) {
-                // 如果插件在redis中没有其版本对应普通项目的post标识或者当前插件大版本内有测试版本，则通过接口获取post标识
-                val atomPostReqItem = AtomPostReqItem(atomCode, version)
-                noCacheAtomItems.add(atomPostReqItem)
-                noCacheElementMap[elementId] = elementItem
-            } else {
-                val atomPostInfoMap = JsonUtil.toMap(atomPostInfo)
-                val postFlag = atomPostInfoMap[ATOM_POST_FLAG] as? Boolean
-                if (postFlag == true) {
-                    allPostElements.add(ElementPostInfo(
-                        postEntryParam = atomPostInfoMap[ATOM_POST_ENTRY_PARAM] as String,
-                        postCondition = atomPostInfoMap[ATOM_POST_CONDITION] as String,
-                        parentElementId = elementId,
-                        parentElementName = elementItem.elementName,
-                        parentElementJobIndex = elementItem.elementJobIndex
-                    ))
-                }
+        startParamsMap: MutableMap<String, BuildParameters>? = null,
+        handlePostFlag: Boolean = true,
+        queryDslContext: DSLContext? = null
+    ) {
+        val watcher = Watcher(id = "fillElementWhenNewBuild#$pipelineId")
+        watcher.start("getTemplateIdByPipeline")
+        val templateId = if (model.instanceFromTemplate == true) {
+            templateService.getTemplateIdByPipeline(projectId, pipelineId, queryDslContext)
+        } else {
+            null
+        }
+        watcher.start("getMatchRuleList")
+        val ruleMatchList = getMatchRuleList(projectId, pipelineId, templateId)
+        val qualityRuleFlag = ruleMatchList.isNotEmpty()
+        var beforeElementSet: List<String>? = null
+        var afterElementSet: List<String>? = null
+        var elementRuleMap: Map<String, List<Map<String, Any>>>? = null
+        if (qualityRuleFlag) {
+            val triple = QualityUtils.generateQualityRuleElement(ruleMatchList)
+            beforeElementSet = triple.first
+            afterElementSet = triple.second
+            elementRuleMap = triple.third
+        }
+        val qaSet = setOf(QualityGateInElement.classType, QualityGateOutElement.classType)
+        watcher.start("fillElement")
+        model.stages.forEachIndexed { index, stage ->
+            if (index == 0) {
+                return@forEachIndexed
             }
-        }
-        if (noCacheAtomItems.isNotEmpty()) {
-            handleNoCachePostElement(
-                projectId = projectId,
-                noCacheAtomItems = noCacheAtomItems,
-                noCacheElementMap = noCacheElementMap,
-                allPostElements = allPostElements
-            )
-        }
-        // 将post操作的element倒序排序以满足业务需要
-        allPostElements.sortByDescending { it.parentElementJobIndex }
-        allPostElements.forEach { elementPostInfo ->
-            addPostElement(
-                elementPostInfo = elementPostInfo,
-                originalElementList = originalElementList,
-                startValues = startValues,
-                finalElementList = finalElementList,
-                finallyStage = finallyStage
-            )
-        }
-        return finalElementList
-    }
+            stage.containers.forEach { container ->
+                val finalElementList = mutableListOf<Element>()
+                val originalElementList = container.elements
+                val elementItemList = mutableListOf<ElementBaseInfo>()
+                originalElementList.forEachIndexed nextElement@{ elementIndex, element ->
+                    // 清空质量红线相关的element
+                    if (element.getClassType() in qaSet) {
+                        return@nextElement
+                    }
+                    var skip = false
+                    if (startValues != null) {
+                        // 优化循环
+                        val key = ElementUtils.getSkipElementVariableName(element.id)
+                        if (startValues[key] == "true" && startParamsMap != null) {
+                            startParamsMap[key] = BuildParameters(
+                                key = key, value = "true", valueType = BuildFormPropertyType.TEMPORARY
+                            )
+                            skip = true
+                            logger.info("[$pipelineId]|${element.id}|${element.name} will be skipped.")
+                        }
+                    }
+                    // 处理质量红线逻辑
+                    if (!qualityRuleFlag) {
+                        finalElementList.add(element)
+                    } else {
+                        if (!skip && beforeElementSet!!.contains(element.getAtomCode())) {
+                            val insertElement = QualityUtils.getInsertElement(element, elementRuleMap!!, true)
+                            if (insertElement != null) finalElementList.add(insertElement)
+                        }
 
-    private fun handleNoCachePostElement(
-        projectId: String,
-        noCacheAtomItems: MutableSet<AtomPostReqItem>,
-        noCacheElementMap: MutableMap<String, ElementBaseInfo>,
-        allPostElements: MutableList<ElementPostInfo>
-    ) {
-        val getPostAtomsResult =
-            client.get(ServiceMarketAtomResource::class).getPostAtoms(projectId, noCacheAtomItems)
-        if (getPostAtomsResult.isNotOk()) {
-            throw ErrorCodeException(
-                errorCode = getPostAtomsResult.status.toString(),
-                defaultMessage = getPostAtomsResult.message
-            )
-        }
-        val atomPostResp = getPostAtomsResult.data
-        val atomPostAtoms = atomPostResp?.postAtoms
-        if (atomPostAtoms != null && atomPostAtoms.isNotEmpty()) {
-            addNoCachePostElement(noCacheElementMap, atomPostAtoms, allPostElements)
-        }
-    }
+                        finalElementList.add(element)
 
-    private fun addNoCachePostElement(
-        noCacheElementMap: MutableMap<String, ElementBaseInfo>,
-        atomPostAtoms: List<AtomPostInfo>,
-        allPostElements: MutableList<ElementPostInfo>
-    ) {
-        noCacheElementMap.forEach { (elementId, elementItem) ->
-            atomPostAtoms.forEach { atomPostInfo ->
-                if (elementItem.atomCode == atomPostInfo.atomCode && elementItem.version == atomPostInfo.version) {
-                    // 把redis中未缓存的带post操作的element加入集合
-                    allPostElements.add(
-                        ElementPostInfo(
-                            postEntryParam = atomPostInfo.postEntryParam,
-                            postCondition = atomPostInfo.postCondition,
-                            parentElementId = elementId,
-                            parentElementName = elementItem.elementName,
-                            parentElementJobIndex = elementItem.elementJobIndex
-                        )
+                        if (!skip && afterElementSet!!.contains(element.getAtomCode())) {
+                            val insertElement = QualityUtils.getInsertElement(element, elementRuleMap!!, false)
+                            if (insertElement != null) finalElementList.add(insertElement)
+                        }
+                    }
+                    if (handlePostFlag) {
+                        // 处理插件post逻辑
+                        if (element is MarketBuildAtomElement || element is MarketBuildLessAtomElement) {
+                            var version = element.version
+                            if (version.isBlank()) {
+                                version = "1.*"
+                            }
+                            val atomCode = element.getAtomCode()
+                            var elementId = element.id
+                            if (elementId == null) {
+                                elementId = modelTaskIdGenerator.getNextId()
+                            }
+                            elementItemList.add(
+                                ElementBaseInfo(
+                                    elementId = elementId,
+                                    elementName = element.name,
+                                    atomCode = atomCode,
+                                    version = version,
+                                    elementJobIndex = elementIndex
+                                )
+                            )
+                        }
+                    }
+                }
+                if (handlePostFlag && elementItemList.isNotEmpty()) {
+                    // 校验插件是否能正常使用并返回带post属性的插件
+                    pipelinePostElementService.handlePostElements(
+                        projectId = projectId,
+                        elementItemList = elementItemList,
+                        originalElementList = originalElementList,
+                        finalElementList = finalElementList,
+                        startValues = startValues,
+                        finallyStage = stage.finally
                     )
                 }
+                if (finalElementList.size > originalElementList.size) {
+                    // 最终生成的元素集合比原元素集合数量多，则说明包含post任务
+                    container.containPostTaskFlag = true
+                }
+                container.elements = finalElementList
             }
         }
+        watcher.stop()
     }
 
-    private fun addPostElement(
-        elementPostInfo: ElementPostInfo,
-        originalElementList: List<Element>,
-        startValues: Map<String, String>?,
-        finalElementList: MutableList<Element>,
-        finallyStage: Boolean
-    ) {
-        val originAtomElement = originalElementList[elementPostInfo.parentElementJobIndex]
-        var originElementId = originAtomElement.id
-        var elementStatus: String? = null
-        if (originElementId == null) {
-            originElementId = modelTaskIdGenerator.getNextId()
-            originAtomElement.id = originElementId
-        } else {
-            if (startValues != null) {
-                originAtomElement.disableBySkipVar(variables = startValues)
-                val status = originAtomElement.initStatus(rerun = finallyStage)
-                // 如果原插件执行时选择跳过，那么插件的post操作也要跳過
-                if (status == BuildStatus.SKIP) {
-                    elementStatus = BuildStatus.SKIP.name
-                }
-            }
-        }
-        val elementName =
-            if (originAtomElement.name.length > 128) originAtomElement.name.substring(0, 128)
-            else originAtomElement.name
-        val postCondition = elementPostInfo.postCondition
-        var postAtomRunCondition = RunCondition.PRE_TASK_SUCCESS
-        when (postCondition) {
-            "failed()" -> {
-                postAtomRunCondition = RunCondition.PRE_TASK_FAILED_ONLY
-            }
-            "always()" -> {
-                postAtomRunCondition = RunCondition.PRE_TASK_FAILED_BUT_CANCEL
-            }
-            "canceledOrTimeOut()" -> {
-                postAtomRunCondition = RunCondition.PARENT_TASK_CANCELED_OR_TIMEOUT
-            }
-        }
-        val additionalOptions = ElementAdditionalOptions(
-            enable = true,
-            continueWhenFailed = true,
-            retryWhenFailed = false,
-            runCondition = postAtomRunCondition,
-            pauseBeforeExec = null,
-            subscriptionPauseUser = null,
-            customVariables = originAtomElement.additionalOptions?.customVariables,
-            retryCount = 0,
-            timeout = 100,
-            otherTask = null,
-            customCondition = null,
-            elementPostInfo = elementPostInfo
-        )
-        // 生成post操作的element
-        val postElementName = "$postPrompt$elementName"
-        if (originAtomElement is MarketBuildAtomElement) {
-            val marketBuildAtomElement = MarketBuildAtomElement(
-                name = postElementName,
-                id = modelTaskIdGenerator.getNextId(),
-                status = elementStatus,
-                atomCode = originAtomElement.getAtomCode(),
-                version = originAtomElement.version,
-                data = originAtomElement.data
-            )
-            marketBuildAtomElement.additionalOptions = additionalOptions
-            finalElementList.add(marketBuildAtomElement)
-        } else if (originAtomElement is MarketBuildLessAtomElement) {
-            val marketBuildLessAtomElement = MarketBuildLessAtomElement(
-                name = postElementName,
-                id = modelTaskIdGenerator.getNextId(),
-                status = elementStatus,
-                atomCode = originAtomElement.getAtomCode(),
-                version = originAtomElement.version,
-                data = originAtomElement.data
-            )
-            marketBuildLessAtomElement.additionalOptions = additionalOptions
-            finalElementList.add(marketBuildLessAtomElement)
+    fun getMatchRuleList(projectId: String, pipelineId: String, templateId: String?): List<QualityRuleMatchTask> {
+        val startTime = System.currentTimeMillis()
+        return try {
+            client.get(ServiceQualityRuleResource::class).matchRuleList(
+                projectId = projectId,
+                pipelineId = pipelineId,
+                templateId = templateId,
+                startTime = LocalDateTime.now().timestamp()
+            ).data ?: listOf()
+        } catch (ignore: Exception) {
+            logger.error("quality get match rule list fail: ${ignore.message}", ignore)
+            return listOf()
+        } finally {
+            LogUtils.costTime("call rule", startTime)
         }
     }
 }

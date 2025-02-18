@@ -42,10 +42,9 @@ class ScmExceptionMapper : ExceptionMapper<ScmException> {
     }
 
     override fun toResponse(exception: ScmException): Response {
-        logger.error("Failed with scm exception: $exception")
         val status = Response.Status.BAD_REQUEST
         return Response.status(status)
             .type(MediaType.APPLICATION_JSON_TYPE)
-            .entity(Result<Void>(status.statusCode, "${exception.scmType}|${exception.message}")).build()
+            .entity(Result<Void>(status.statusCode, "${exception.message}")).build()
     }
 }

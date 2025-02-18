@@ -27,10 +27,12 @@
 
 package com.tencent.devops.process.report.dao
 
+import com.tencent.devops.model.process.tables.TPipelineBuildTask
 import com.tencent.devops.model.process.tables.TReport
 import com.tencent.devops.model.process.tables.records.TReportRecord
 import com.tencent.devops.process.pojo.report.enums.ReportTypeEnum
 import org.jooq.DSLContext
+import org.jooq.Record2
 import org.jooq.Result
 import org.jooq.impl.DSL
 import org.springframework.stereotype.Repository
@@ -39,6 +41,19 @@ import java.time.LocalDateTime
 @Suppress("ALL")
 @Repository
 class ReportDao {
+    fun getAtomInfo(
+        dslContext: DSLContext,
+        buildId: String,
+        taskId: String
+    ): Record2<String, String>? {
+        with(TPipelineBuildTask.T_PIPELINE_BUILD_TASK) {
+            return dslContext.select(ATOM_CODE, TASK_NAME).from(this)
+                .where(BUILD_ID.eq(buildId))
+                .and(TASK_ID.eq(taskId))
+                .fetchOne()
+        }
+    }
+
     fun create(
         dslContext: DSLContext,
         projectId: String,
@@ -47,7 +62,10 @@ class ReportDao {
         elementId: String,
         indexFile: String,
         name: String,
-        type: String
+        type: String,
+        atomCode: String,
+        taskName: String,
+        id: Long? = null
     ): Long {
         val now = LocalDateTime.now()
         with(TReport.T_REPORT) {
@@ -61,7 +79,10 @@ class ReportDao {
                 NAME,
                 TYPE,
                 CREATE_TIME,
-                UPDATE_TIME
+                UPDATE_TIME,
+                ATOM_CODE,
+                TASK_NAME,
+                ID
             ).values(
                 projectId,
                 pipelineId,
@@ -71,7 +92,10 @@ class ReportDao {
                 name,
                 type,
                 now,
-                now
+                now,
+                atomCode,
+                taskName,
+                id
             )
                 .returning(ID)
                 .fetchOne()!!
@@ -107,6 +131,8 @@ class ReportDao {
         elementId: String,
         indexFile: String,
         name: String,
+        atomCode: String,
+        taskName: String,
         type: ReportTypeEnum
     ): Int {
         with(TReport.T_REPORT) {
@@ -114,6 +140,8 @@ class ReportDao {
                 .set(ELEMENT_ID, elementId)
                 .set(INDEX_FILE, indexFile)
                 .set(NAME, name)
+                .set(ATOM_CODE, atomCode)
+                .set(TASK_NAME, taskName)
                 .set(TYPE, type.name)
                 .set(UPDATE_TIME, LocalDateTime.now())
                 .where(PROJECT_ID.eq(projectId))

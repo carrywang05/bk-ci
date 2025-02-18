@@ -30,7 +30,6 @@ dependencies {
     api(project(":core:common:common-api"))
     api(project(":core:dockerhost:api-dockerhost"))
     api(project(":core:process:api-process"))
-    api(project(":core:store:api-store-image"))
     api("com.github.docker-java:docker-java")
     api("com.github.docker-java:docker-java-transport-okhttp")
     api("org.apache.httpcomponents:httpclient")
@@ -40,5 +39,5 @@ dependencies {
     api("org.glassfish.jersey.containers:jersey-container-servlet")
     api("org.slf4j:slf4j-api")
     api("com.squareup.okhttp3:okhttp")
-    api("com.tencent.devops.ci-plugins:sigar")
+    implementation("com.github.oshi:oshi-core")
 }

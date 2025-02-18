@@ -19,15 +19,21 @@
 
 import Vue from 'vue'
 import {
-    SET_CODELIBS_MUTATION,
-    SET_TICKETS_MUTATION,
-    UPDATE_CODE_LIB_MUTATION,
-    TOGGLE_CODE_LIB_DIALOG,
     DIALOG_LOADING_MUTATION,
+    SET_CODELIBS_MUTATION,
+    SET_CODELIB_TYPES,
     SET_OAUTH_MUTATION,
-    SET_T_GIT_OAUTH_MUTATION
+    SET_TEMPLATE_CODELIB,
+    SET_TICKETS_MUTATION,
+    SET_T_GIT_OAUTH_MUTATION,
+    TOGGLE_CODE_LIB_DIALOG,
+    UPDATE_CODE_LIB_MUTATION
 } from './constants'
 const mutations = {
+    [SET_CODELIB_TYPES]: (state, codelibTypes) => {
+        state.codelibTypes = codelibTypes.filter(codelibType => codelibType.status !== 'DISABLED')
+    },
+
     [SET_CODELIBS_MUTATION]: (state, {
         codelibs
     }) => {
@@ -65,7 +71,10 @@ const mutations = {
         type,
         oAuth
     }) => {
-        Vue.set(state, `tGitOAuth`, oAuth)
+        Vue.set(state, 'tGitOAuth', oAuth)
+    },
+    [SET_TEMPLATE_CODELIB] (state, codelib) {
+        Vue.set(state, 'templateCodeLib', codelib)
     }
 }
 

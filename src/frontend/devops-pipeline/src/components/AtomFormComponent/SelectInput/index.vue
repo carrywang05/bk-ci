@@ -1,16 +1,47 @@
 <template>
-    <div class="select-input" v-bk-clickoutside="handleBlur">
-        <input class="bk-form-input" v-bind="restProps" v-model="displayName" :disabled="disabled || loading" ref="inputArea" :title="value" autocomplete="off" @input="handleInput" @focus="handleFocus" @keypress.enter.prevent="handleEnterOption" @keydown.up.prevent="handleKeyup" @keydown.down.prevent="handleKeydown" @keydown.tab.prevent="handleBlur" />
-        <i v-if="loading" class="devops-icon icon-circle-2-1 option-fetching-icon spin-icon" />
-        <i v-else-if="!disabled && value" class="devops-icon icon-close-circle-shape option-fetching-icon" @click.stop="clearValue" />
-        <div class="dropbox-container" v-show="hasOption && optionListVisible && !loading" ref="dropMenu">
+    <div
+        class="select-input"
+        v-bk-clickoutside="handleBlur"
+    >
+        <input
+            class="bk-form-input"
+            v-bind="restProps"
+            v-model="displayName"
+            :disabled="disabled || loading"
+            ref="inputArea"
+            :title="value"
+            autocomplete="off"
+            @input="handleInput"
+            @focus="handleFocus"
+            @keypress.enter.prevent="handleEnterOption"
+            @keydown.up.prevent="handleKeyup"
+            @keydown.down.prevent="handleKeydown"
+            @keydown.tab.prevent="handleBlur"
+        />
+        <i
+            v-if="loading"
+            class="devops-icon icon-circle-2-1 option-fetching-icon spin-icon"
+        />
+        <i
+            v-else-if="!disabled && value"
+            class="devops-icon icon-close-circle-shape option-fetching-icon"
+            @click.stop="clearValue"
+        />
+        <div
+            class="dropbox-container"
+            v-show="hasOption && optionListVisible && !loading"
+            ref="dropMenu"
+        >
             <ul>
                 <template v-if="hasGroup">
-                    <li v-for="(item, index) in filteredList"
-                        :key="item.id"
-                        :disabled="item.disabled">
+                    <li
+                        v-for="(item, index) in filteredList"
+                        :key="item.id + index"
+                        :disabled="item.disabled"
+                    >
                         <div class="option-group-name">{{ item.name }}</div>
-                        <div class="option-group-item"
+                        <div
+                            class="option-group-item"
                             v-for="(child, childIndex) in item.children"
                             :key="child.id"
                             :class="{ active: child.id === value, selected: selectedPointer === childIndex && selectedGroupPointer === index }"
@@ -18,17 +49,31 @@
                             @click.stop="selectOption(child)"
                             @mouseover="setSelectGroupPointer(index, childIndex)"
                             :title="item.name"
-                        >{{ child.name }}</div>
+                        >
+                            {{ child.name }}
+                        </div>
                     </li>
                 </template>
                 <template v-else>
-                    <li class="option-item" v-for="(item, index) in filteredList" :key="item.id" :class="{ active: item.id === value, selected: selectedPointer === index }" :disabled="item.disabled" @click.stop="selectOption(item)" @mouseover="setSelectPointer(index)" :title="item.name">
+                    <li
+                        v-for="(item, index) in filteredList"
+                        class="option-item"
+                        :key="item.id + index"
+                        :class="{ active: item.id === value, selected: selectedPointer === index }"
+                        :disabled="item.disabled"
+                        @click.stop="selectOption(item)"
+                        @mouseover="setSelectPointer(index)"
+                        :title="item.name"
+                    >
                         {{ item.name }}
                     </li>
                 </template>
                 <template v-if="mergedOptionsConf.hasAddItem">
                     <div class="bk-select-extension">
-                        <a :href="addItemUrl" target="_blank">
+                        <a
+                            :href="addItemUrl"
+                            target="_blank"
+                        >
                             <i class="bk-icon icon-plus-circle" />
                             {{ mergedOptionsConf.itemText }}
                         </a>
@@ -194,11 +239,13 @@
             },
 
             setSelectPointer (index) {
+                this.$refs.inputArea.focus()
                 this.selectedPointer = index
                 this.adjustViewPort()
             },
 
             setSelectGroupPointer (index, childIndex) {
+                this.$refs.inputArea.focus()
                 this.selectedGroupPointer = index
                 this.selectedPointer = childIndex
                 this.adjustViewPort()
@@ -219,17 +266,15 @@
 
                     if (this.hasGroup) {
                         options = options.filter(item => item.children.length)
-                        this.optionList = options.map(item => {
+                        this.optionList = options.forEach(item => {
                             if (isObject(item)) {
                                 return {
                                     ...item,
-                                    children: item.children.map(child => {
-                                        return {
-                                            ...child,
-                                            id: child[paramId],
-                                            name: child[paramName]
-                                        }
-                                    })
+                                    children: item.children.map(child => ({
+                                        ...child,
+                                        id: child[paramId],
+                                        name: child[paramName]
+                                    }))
                                 }
                             }
                         })
@@ -279,7 +324,7 @@
             position: absolute;
             right: 20px;
             top: 10px;
-            color: $fontLigtherColor;
+            color: $fontLighterColor;
             &.icon-close-circle-shape {
                 cursor: pointer;
             }
@@ -317,7 +362,7 @@
                 //     }
 
                 //     &[disabled] {
-                //         color: $fontLigtherColor;
+                //         color: $fontLighterColor;
                 //     }
                 // }
                 .option-group-name {
@@ -335,15 +380,19 @@
                     white-space: nowrap;
                     cursor: pointer;
                     font-size: 12px;
+                    border: 1px solid transparent;
                     &.selected,
                     &.active,
                     &:hover {
                         background-color: $primaryLightColor;
                         color: $primaryColor;
                     }
+                    &.selected {
+                       border-color : $primaryColor;
+                    }
 
                     &[disabled] {
-                        color: $fontLigtherColor;
+                        color: $fontLighterColor;
                     }
                 }
                 .bk-select-extension a {

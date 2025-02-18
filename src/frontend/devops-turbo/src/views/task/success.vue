@@ -1,27 +1,50 @@
 <template>
     <article class="task-success-home">
-        <bk-breadcrumb separator-class="bk-icon icon-angle-right" class="bread-crumb">
+        <bk-breadcrumb
+            separator-class="bk-icon icon-angle-right"
+            class="bread-crumb"
+        >
             <bk-breadcrumb-item :to="{ name: 'taskList' }"> {{ $t('turbo.方案列表') }} </bk-breadcrumb-item>
             <bk-breadcrumb-item> {{ $t('turbo.新增加速方案') }} </bk-breadcrumb-item>
         </bk-breadcrumb>
 
-        <section class="g-turbo-box" v-bkloading="{ isloading }">
+        <section
+            class="g-turbo-box"
+            v-bkloading="{ isloading }"
+        >
             <p class="success-tip">
-                <logo name="check-circle" size="48" class="icon-success"></logo>
+                <logo
+                    name="check-circle"
+                    size="48"
+                    class="icon-success"
+                ></logo>
                 <span class="g-turbo-black-font"> {{ $t('turbo.加速方案提交成功') }} </span>
-                <span class="success-plan-id g-turbo-gray-font"> {{ $t('turbo.方案Id为：') }} {{ $route.query.planId }}<logo name="copy" class="icon-copy" size="16" @click.native="copy"></logo></span>
+                <span class="success-plan-id g-turbo-gray-font"> {{ $t('turbo.方案Id为：') }} {{ $route.query.planId }}<logo
+                    name="copy"
+                    class="icon-copy"
+                    size="16"
+                    @click.native="copy"
+                ></logo></span>
             </p>
 
-            <section class="g-turbo-task-tip success-tip-user" v-html="engineDetail.userManual"></section>
+            <section
+                class="g-turbo-task-tip success-tip-user"
+                v-html="engineDetail.userManual"
+            ></section>
         </section>
 
-        <bk-button theme="primary" @click="goToDetail"> {{ $t('turbo.查看详情') }} </bk-button>
+        <bk-button
+            theme="primary"
+            @click="goToDetail"
+        >
+            {{ $t('turbo.查看详情') }}
+        </bk-button>
     </article>
 </template>
 
 <script>
     import { getEngineDetail } from '@/api'
-    import { copy } from '@/assets/js/util'
+    import { copyText } from '@/assets/js/util'
     import logo from '@/components/logo'
 
     export default {
@@ -54,7 +77,7 @@
             },
 
             copy () {
-                copy(this.$route.query.planId, this.$t.bind(this))
+                copyText(this.$route.query.planId, this)
             },
 
             goToDetail () {
@@ -81,7 +104,7 @@
         .bread-crumb {
             font-size: 12px;
             margin-bottom: 10px;
-            /deep/ .bk-breadcrumb-separator {
+            ::v-deep .bk-breadcrumb-separator {
                 font-size: 14px;
             }
             .bk-breadcrumb-item:last-child {

@@ -1,12 +1,29 @@
 <template>
-    <ul class="total-static-list" v-bkloading="{ isLoading }">
-        <li v-for="(statistic, index) in statisticList" :key="index" class="static-item">
-            <icon :name="statistic.name" class="item-icon" size="64"></icon>
+    <ul
+        class="total-static-list"
+        v-bkloading="{ isLoading }"
+    >
+        <li
+            v-for="(statistic, index) in statisticList"
+            :key="index"
+            class="static-item"
+        >
+            <icon
+                :name="statistic.name"
+                class="item-icon"
+                size="64"
+            ></icon>
             <h5 class="item-title">
-                <span :class="['item-name', { 'g-store-text-underline': statistic.tips }]"
+                <span
+                    :class="['item-name', { 'g-store-text-underline': statistic.tips }]"
                     v-bk-tooltips="{ content: statistic.tips, disabled: !statistic.tips }"
                 >{{ statistic.label }}</span>
-                <p :class="{ 'item-value': true, 'statistic-link': statistic.linkName }" @click="goToLink(statistic.linkName)">{{ statistic.value }}</p>
+                <p
+                    :class="{ 'item-value': true, 'g-text-link': statistic.linkName }"
+                    @click="goToLink(statistic.linkName)"
+                >
+                    {{ statistic.value }}
+                </p>
             </h5>
         </li>
     </ul>
@@ -58,10 +75,11 @@
                 }).then((res) => {
                     this.statisticList = [
                         { name: 'install-num', label: this.$t('store.安装量'), value: res.downloads },
-                        { name: 'pipeline-count',
-                          label: this.$t('store.流水线个数'),
-                          value: res.pipelineCnt,
-                          linkName: 'statisticPipeline'
+                        {
+                            name: 'pipeline-count',
+                            label: this.$t('store.流水线个数'),
+                            value: res.pipelineCnt,
+                            linkName: 'statisticPipeline'
                         },
                         { name: 'comment-num', label: this.$t('store.评论数'), value: res.commentCnt },
                         { name: 'rate', label: this.$t('store.评分'), value: res.score || '--' },
@@ -107,6 +125,7 @@
                     font-size: .14rem;
                     color: #999;
                     line-height: .2rem;
+                    white-space: nowrap;
                 }
                 .item-value {
                     font-weight: 600;
@@ -115,13 +134,6 @@
                     margin-top: .03rem;
                     box-sizing: border-box;
                     height: .3rem;
-                }
-                .statistic-link {
-                    cursor: pointer;
-                    color: #3a84ff;
-                    &:hover {
-                        border-bottom: 1px solid #3a84ff;
-                    }
                 }
             }
         }

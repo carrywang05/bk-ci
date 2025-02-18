@@ -1,56 +1,101 @@
 <template>
-    <div class="release-progress-wrapper"
+    <div
+        class="release-progress-wrapper"
         v-bkloading="{
             isLoading: loading.isLoading,
             title: loading.title
-        }">
-        <bread-crumbs :bread-crumbs="navList" type="atom">
-            <a class="g-title-work" target="_blank" :href="docsLink"> {{ $t('store.插件指引') }} </a>
+        }"
+    >
+        <bread-crumbs
+            :bread-crumbs="navList"
+            type="atom"
+        >
+            <a
+                class="g-title-work"
+                target="_blank"
+                :href="docsLink"
+            > {{ $t('store.插件指引') }} </a>
         </bread-crumbs>
 
-        <div class="release-progress-content" v-show="showContent">
+        <div
+            class="release-progress-content"
+            v-show="showContent"
+        >
             <div class="atom-release-msg">
                 <div class="detail-title release-progress-title">
-                    <p class="form-title"> {{ $t('store.发布进度') }} <span :class="[{ disable: !permission }, 'cancel-release-btn']" v-if="!isOver" @click="handlerCancel" :title="permissionMsg"> {{ $t('store.取消发布') }} </span>
+                    <p class="form-title">
+                        {{ $t('store.发布进度') }} <span
+                            :class="[{ disable: !permission }, 'cancel-release-btn']"
+                            v-if="!isOver"
+                            @click="handlerCancel"
+                            :title="permissionMsg"
+                        > {{ $t('store.取消发布') }} </span>
                     </p>
                     <hr class="cut-line">
                     <div class="progress-step">
                         <div class="step-line-box">
-                            <div class="step-card" v-for="(entry, index) in progressStatus" :key="index"
+                            <div
+                                class="step-card"
+                                v-for="(entry, index) in progressStatus"
+                                :key="index"
                                 :class="{ 'processing-status': entry.status === 'doing',
                                           'fail-status': entry.status === 'fail',
-                                          'success-status': entry.code === 'end' && entry.status === 'success' }">
+                                          'success-status': entry.code === 'end' && entry.status === 'success' }"
+                            >
                                 <div class="card-item">
-                                    <i class="devops-icon icon-check-1" v-if="entry.status === 'success'"></i>
+                                    <i
+                                        class="devops-icon icon-check-1"
+                                        v-if="entry.status === 'success'"
+                                    ></i>
                                     <p class="step-label">{{ entry.name }}</p>
                                 </div>
                                 <div class="retry-bth">
-                                    <span class="test-btn"
-                                        v-if="entry.code === 'commit' && ['doing','success'].includes(entry.status) && !isOver">
+                                    <span
+                                        class="test-btn"
+                                        v-if="entry.code === 'commit' && ['doing','success'].includes(entry.status) && !isOver"
+                                    >
                                         <span @click="$refs.upload[0].click()">{{ $t('store.重新传包') }}</span>
                                         <span class="retry-pkgName">{{ versionDetail.pkgName }}</span>
-                                        <input ref="upload" type="file" title="" class="upload-input" @change="selectFile" accept="application/zip">
+                                        <input
+                                            ref="upload"
+                                            type="file"
+                                            title=""
+                                            class="upload-input"
+                                            @change="selectFile"
+                                            accept="application/zip"
+                                        >
                                     </span>
                                 </div>
                                 <div class="retry-bth">
-                                    <span class="test-btn"
-                                        v-if="entry.code === 'test' && entry.status === 'doing'">
-                                        <a target="_blank" :href="`/console/pipeline/${versionDetail.projectCode}/list`"> {{ $t('store.测试') }} </a>
+                                    <span
+                                        class="test-btn"
+                                        v-if="entry.code === 'test' && entry.status === 'doing'"
+                                    >
+                                        <a
+                                            target="_blank"
+                                            :href="`/console/pipeline/${versionDetail.projectCode}`"
+                                        > {{ $t('store.测试') }} </a>
                                     </span>
                                 </div>
-                                <bk-button :class="[{ 'small-left': progressStatus.length === 6 }, 'pass-btn']"
+                                <bk-button
+                                    :class="[{ 'small-left': progressStatus.length === 6 }, 'pass-btn']"
                                     theme="primary"
                                     size="small"
                                     v-if="entry.code === 'test'"
                                     :disabled="entry.status !== 'doing' || !permission"
                                     @click.stop="passTest"
                                     :title="permissionMsg"
-                                > {{ $t('store.继续') }} </bk-button>
+                                >
+                                    {{ $t('store.继续') }}
+                                </bk-button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="detail-title version-detail-title" v-if="!isOver">
+                <div
+                    class="detail-title version-detail-title"
+                    v-if="!isOver"
+                >
                     <p class="form-title"> {{ $t('store.版本详情') }} </p>
                     <hr class="cut-line">
                     <div class="atom-version-detail">
@@ -77,11 +122,23 @@
                         <div class="detail-form-item multi-item">
                             <div class="detail-form-item">
                                 <div class="info-label"> {{ $t('store.操作系统：') }} </div>
-                                <div class="info-value" v-if="versionDetail.os">
+                                <div
+                                    class="info-value"
+                                    v-if="versionDetail.os"
+                                >
                                     <span v-if="versionDetail.jobType === 'AGENT'">
-                                        <i class="devops-icon icon-linux-view" v-if="versionDetail.os.indexOf('LINUX') !== -1"></i>
-                                        <i class="devops-icon icon-windows" v-if="versionDetail.os.indexOf('WINDOWS') !== -1"></i>
-                                        <i class="devops-icon icon-macos" v-if="versionDetail.os.indexOf('MACOS') !== -1"></i>
+                                        <i
+                                            class="devops-icon icon-linux-view"
+                                            v-if="versionDetail.os.indexOf('LINUX') !== -1"
+                                        ></i>
+                                        <i
+                                            class="devops-icon icon-windows"
+                                            v-if="versionDetail.os.indexOf('WINDOWS') !== -1"
+                                        ></i>
+                                        <i
+                                            class="devops-icon icon-macos"
+                                            v-if="versionDetail.os.indexOf('MACOS') !== -1"
+                                        ></i>
                                     </span>
                                 </div>
                             </div>
@@ -89,7 +146,13 @@
                         <div class="detail-form-item">
                             <div class="info-label"> {{ $t('store.功能标签：') }} </div>
                             <div class="info-value feature-label">
-                                <div class="label-card" v-for="(label, index) in versionDetail.labels" :key="index">{{ label }}</div>
+                                <div
+                                    class="label-card"
+                                    v-for="(label, index) in versionDetail.labels"
+                                    :key="index"
+                                >
+                                    {{ label }}
+                                </div>
                             </div>
                         </div>
                         <div class="detail-form-item">
@@ -98,7 +161,11 @@
                         </div>
                         <div class="detail-form-item">
                             <div class="info-label"> {{ $t('store.详细描述：') }} </div>
-                            <div class="info-value markdown-editor-show" ref="editor" :class="{ 'overflow': !isDropdownShow }">
+                            <div
+                                class="info-value markdown-editor-show"
+                                ref="editor"
+                                :class="{ 'overflow': !isDropdownShow }"
+                            >
                                 <mavon-editor
                                     :editable="false"
                                     default-open="preview"
@@ -106,13 +173,19 @@
                                     :toolbars-flag="false"
                                     :external-link="false"
                                     :box-shadow="false"
+                                    :language="mavenLang"
                                     preview-background="#fafbfd"
                                     v-model="versionDetail.description"
                                 >
                                 </mavon-editor>
                             </div>
                         </div>
-                        <div class="toggle-btn" v-if="isOverflow" @click="toggleShow()">{{ isDropdownShow ? $t('store.收起') : $t('store.展开') }}
+                        <div
+                            class="toggle-btn"
+                            v-if="isOverflow"
+                            @click="toggleShow()"
+                        >
+                            {{ isDropdownShow ? $t('store.收起') : $t('store.展开') }}
                             <i :class="['devops-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"></i>
                         </div>
                         <div class="detail-form-item">
@@ -141,6 +214,7 @@
                                     :toolbars-flag="false"
                                     :external-link="false"
                                     :box-shadow="false"
+                                    :language="mavenLang"
                                     preview-background="#fafbfd"
                                     v-model="versionDetail.versionContent"
                                 >
@@ -149,16 +223,37 @@
                         </div>
                     </div>
                     <div class="atom-logo-box">
-                        <img :src="versionDetail.logoUrl" v-if="versionDetail.logoUrl">
-                        <i class="devops-icon icon-placeholder atom-logo" v-else></i>
+                        <img
+                            :src="versionDetail.logoUrl"
+                            v-if="versionDetail.logoUrl"
+                        >
+                        <i
+                            class="devops-icon icon-placeholder atom-logo"
+                            v-else
+                        ></i>
                     </div>
                 </div>
             </div>
-            <div class="released-tips" v-if="isOver">
+            <div
+                class="released-tips"
+                v-if="isOver"
+            >
                 <h3> {{ $t('store.恭喜，成功发布到商店!') }} </h3>
                 <div class="handle-btn">
-                    <bk-button class="bk-button bk-primary" size="small" @click="toAtomList"> {{ $t('store.工作台') }} </bk-button>
-                    <bk-button class="bk-button bk-default" size="small" @click="toAtomStore"> {{ $t('store.研发商店') }} </bk-button>
+                    <bk-button
+                        class="bk-button bk-primary"
+                        size="small"
+                        @click="toAtomList"
+                    >
+                        {{ $t('store.工作台') }}
+                    </bk-button>
+                    <bk-button
+                        class="bk-button bk-default"
+                        size="small"
+                        @click="toAtomStore"
+                    >
+                        {{ $t('store.研发商店') }}
+                    </bk-button>
                 </div>
             </div>
         </div>
@@ -166,9 +261,9 @@
 </template>
 
 <script>
-    import * as cookie from 'js-cookie'
-    import webSocketMessage from '@/utils/webSocketMessage'
     import breadCrumbs from '@/components/bread-crumbs.vue'
+    import webSocketMessage from '@/utils/webSocketMessage'
+    import cookie from 'js-cookie'
 
     const CSRFToken = cookie.get('backend_csrftoken')
 
@@ -185,7 +280,7 @@
                 currentBuildNo: '',
                 currentPipelineId: '',
                 timer: -1,
-                docsLink: `${DOCS_URL_PREFIX}/store/plugins/create-plugin`,
+                docsLink: this.BKCI_DOCS.PLUGIN_GUIDE_DOC,
                 showContent: false,
                 isOverflow: false,
                 isDropdownShow: false,
@@ -196,24 +291,25 @@
                     title: ''
                 },
                 categoryMap: {
-                    'TASK': this.$t('store.流水线插件'),
-                    'TRIGGER': this.$t('store.流水线触发器')
+                    TASK: this.$t('store.流水线插件'),
+                    TRIGGER: this.$t('store.流水线触发器')
                 },
                 jobTypeMap: {
-                    'AGENT': this.$t('store.编译环境'),
-                    'AGENT_LESS': this.$t('store.无编译环境')
+                    AGENT: this.$t('store.编译环境'),
+                    AGENT_LESS: this.$t('store.无编译环境')
                 },
                 osMap: {
-                    'LINUX': 'Linux',
-                    'WINDOWS': 'Windows',
-                    'MACOS': 'macOS'
+                    LINUX: 'Linux',
+                    WINDOWS: 'Windows',
+                    MACOS: 'macOS'
                     // 'NONE': '无构建环境'
                 },
                 releaseMap: {
-                    'NEW': this.$t('store.新上架'),
-                    'INCOMPATIBILITY_UPGRADE': this.$t('store.非兼容式升级'),
-                    'COMPATIBILITY_UPGRADE': this.$t('store.兼容式功能更新'),
-                    'COMPATIBILITY_FIX': this.$t('store.兼容式问题修正')
+                    NEW: this.$t('store.新上架'),
+                    INCOMPATIBILITY_UPGRADE: this.$t('store.非兼容式升级'),
+                    COMPATIBILITY_UPGRADE: this.$t('store.兼容式功能更新'),
+                    COMPATIBILITY_FIX: this.$t('store.兼容式问题修正'),
+                    HIS_VERSION_UPGRADE: this.$t('store.历史大版本问题修复')
                 },
                 versionDetail: {
                     atomCode: '',
@@ -247,6 +343,9 @@
                     { name: this.versionDetail.atomCode, to: { name: 'statisticData', params: { code: this.versionDetail.atomCode, type: 'atom' } } },
                     { name: this.curTitle }
                 ]
+            },
+            mavenLang () {
+                return this.$i18n.locale === 'en-US' ? 'en' : this.$i18n.locale
             }
         },
 
@@ -477,13 +576,15 @@
             },
             confirmSubmit (message, confirmFn) {
                 const h = this.$createElement
-                const subHeader = h('p', { style: {
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'normal',
-                    textAlign: 'left',
-                    lineHeight: '24px'
-                } }, message)
+                const subHeader = h('p', {
+                    style: {
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        whiteSpace: 'normal',
+                        textAlign: 'left',
+                        lineHeight: '24px'
+                    }
+                }, message)
                 this.$bkInfo({
                     type: 'warning',
                     subHeader,
@@ -595,6 +696,9 @@
             }
             .card-item {
                 text-align: center;
+                word-wrap: break-word;
+                word-break: break-all;
+                padding: 5px;
                 i {
                     font-size: 12px;
                     font-weight: bold;
@@ -727,10 +831,10 @@
             }
             .markdown-editor-show.info-value {
                 overflow-y: auto;
-                /deep/ .v-note-panel {
+                ::v-deep .v-note-panel {
                     border: none;
                 }
-                /deep/ .v-show-content {
+                ::v-deep .v-show-content {
                     background: #FAFBFD;
                 }
             }
@@ -787,7 +891,7 @@
                 margin-top: 40px;
             }
         }
-        /deep/ .bk-sideslider-wrapper {
+        ::v-deep .bk-sideslider-wrapper {
             top: 0;
             padding-bottom: 0;
             .bk-sideslider-content {

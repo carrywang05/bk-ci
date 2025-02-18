@@ -27,13 +27,17 @@
 
 package com.tencent.devops.scm.utils.code.git
 
+import com.tencent.devops.common.api.constant.CommonMessageCode.CALL_REPO_ERROR
+import com.tencent.devops.common.api.constant.CommonMessageCode.GIT_INVALID_PRIVATE_KEY
+import com.tencent.devops.common.api.constant.CommonMessageCode.GIT_LOGIN_FAIL
+import com.tencent.devops.common.api.constant.CommonMessageCode.GIT_SERCRT_WRONG
 import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.scm.exception.ScmException
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-@Suppress("MagicNumber")
+@Suppress("MagicNumber", "TooManyFunctions")
 object GitUtils {
     // 工蜂pre-push虚拟分支
     private const val PRE_PUSH_BRANCH_NAME_PREFIX = "refs/for/"
@@ -46,12 +50,14 @@ object GitUtils {
 
     fun getDomainAndRepoName(gitUrl: String): Pair<String/*domain*/, String/*repoName*/> {
         // 兼容http存在端口的情況 http://gitlab.xx:8888/xx.git
-        val groups = Regex("git@([-.a-z0-9A-Z]+):(.*).git").find(gitUrl)?.groups
-            ?: Regex("http[s]?://([-.a-z0-9A-Z]+)(:[0-9]+)?/(.*).git").find(gitUrl)?.groups
-            ?: throw ScmException("Invalid git url $gitUrl", ScmType.CODE_GIT.name)
+        // [.git] 后缀小数点需转义, 否则会匹配失败
+        val groups = Regex("git@([-.a-z0-9A-Z]+):([0-9]+/)?(.*)\\.git").find(gitUrl)?.groups
+            ?: Regex("http[s]?://([-.a-z0-9A-Z]+)(:[0-9]+)?/(.*)\\.git").find(gitUrl)?.groups
+            ?: Regex("http[s]?://([-.a-z0-9A-Z]+)(:[0-9]+)?/(.*)").find(gitUrl)?.groups
+            ?: throw ScmException("Git error, invalid field [http_url]:$gitUrl", ScmType.CODE_GIT.name)
 
         if (groups.size < 3) {
-            throw ScmException("Invalid git url $gitUrl", ScmType.CODE_GIT.name)
+            throw ScmException("Git error, invalid field [http_url]:$gitUrl", ScmType.CODE_GIT.name)
         }
 
         if (gitUrl.startsWith("http")) {
@@ -59,7 +65,12 @@ object GitUtils {
             return url.authority to groups[3]!!.value
         }
 
-        return groups[1]!!.value to groups[2]!!.value
+        return "${groups[1]!!.value}${hasPort(groups[2])}" to groups[3]!!.value
+    }
+
+    private fun hasPort(port: MatchGroup?): String {
+        return if (port == null) ""
+        else ":${port.value.removeSuffix("/")}"
     }
 
     /**
@@ -102,5 +113,63 @@ object GitUtils {
 
     fun isLegalSshUrl(url: String): Boolean {
         return Regex("git@([-.a-z0-9A-Z]+):(.*).git").matches(url)
+    }
+
+    fun getRepoGroupAndName(projectName: String): Pair<String, String> {
+        val repoName = projectName.split("/")
+        val repoProjectName = if (repoName.size >= 2) {
+            val index = projectName.lastIndexOf("/")
+            projectName.substring(index + 1)
+        } else {
+            projectName
+        }
+        val repoGroupName = if (repoName.size >= 2) {
+            projectName.removeSuffix("/$repoProjectName")
+        } else {
+            projectName
+        }
+        return Pair(repoGroupName, repoProjectName)
+    }
+
+    fun getShortSha(commitId: String?): String {
+        return if (commitId.isNullOrBlank() || commitId.length < 8) {
+            ""
+        } else {
+            commitId.substring(0, 8)
+        }
+    }
+
+    /**
+     * 校验代码库url
+     */
+    fun diffRepoUrl(
+        sourceRepoUrl: String,
+        targetRepoUrl: String
+    ): Boolean {
+        val sourceRepoInfo = GitUtils.getDomainAndRepoName(sourceRepoUrl)
+        val targetRepoInfo = GitUtils.getDomainAndRepoName(targetRepoUrl)
+        return sourceRepoInfo.first != targetRepoInfo.first ||
+                sourceRepoInfo.second != targetRepoInfo.second
+    }
+
+    /**
+     * 匹配异常状态码
+     */
+    fun matchExceptionCode(message: String) = when {
+        Regex("Git repository not found").containsMatchIn(message) -> GIT_SERCRT_WRONG
+        Regex("invalid privatekey").containsMatchIn(message) -> GIT_INVALID_PRIVATE_KEY
+        Regex("connection failed").containsMatchIn(message) ||
+                Regex("connection is closed by foreign host").containsMatchIn(message) -> CALL_REPO_ERROR
+        Regex("not authorized").containsMatchIn(message) -> GIT_LOGIN_FAIL
+        else -> null
+    }
+
+    fun getHttpUrl(sshUrl: String) = when {
+        sshUrl.startsWith("http://") || sshUrl.startsWith("https://") -> sshUrl
+        sshUrl.startsWith("git@") -> {
+            val (domain, repoName) = getDomainAndRepoName(sshUrl)
+            "https://$domain/$repoName"
+        }
+        else -> throw IllegalArgumentException("Unknown code repository URL")
     }
 }

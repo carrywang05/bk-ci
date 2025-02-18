@@ -2,13 +2,34 @@
     <div class="sub-build-params">
         <ul>
             <template v-if="paramList.length">
-                <li class="param-item" v-for="param in paramList" :key="param.key">
-                    <div><vuex-input :disabled="true" name="key" :value="param.key" /></div>
+                <li
+                    class="param-item"
+                    v-for="param in paramList"
+                    :key="param.key"
+                >
+                    <div>
+                        <vuex-input
+                            :disabled="true"
+                            name="key"
+                            :value="param.key"
+                        />
+                    </div>
                     <span>=</span>
-                    <div><vuex-input :name="param.key" :value="param.value" :handle-change="handleParamChange" /></div>
+                    <div>
+                        <vuex-input
+                            :name="param.key"
+                            :value="param.value"
+                            :handle-change="handleParamChange"
+                        />
+                    </div>
                 </li>
             </template>
-            <li v-else class="param-item-empty"><span>{{ $t('editPage.paramEmpty') }}</span></li>
+            <li
+                v-else
+                class="param-item-empty"
+            >
+                <span>{{ $t('editPage.paramEmpty') }}</span>
+            </li>
         </ul>
     </div>
 </template>
@@ -45,7 +66,7 @@
         methods: {
             handleParamChange (name, value) {
                 const newItem = { key: name, value: value }
-                this.paramList.map((item, index) => {
+                this.paramList.forEach((item) => {
                     if (item.key.toString() === name) {
                         // this.paramList.splice(index, 1, newItem)
                         Object.assign(item, newItem)
@@ -74,7 +95,7 @@
         }
         .param-item-empty {
             text-align: center;
-            color: $fontLigtherColor;
+            color: $fontLighterColor;
         }
     }
 </style>

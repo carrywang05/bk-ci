@@ -27,6 +27,7 @@
 
 package com.tencent.devops.worker.common.api.report
 
+import com.tencent.bkrepo.repository.pojo.token.TokenType
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.process.pojo.BuildVariables
 import com.tencent.devops.process.pojo.report.ReportEmail
@@ -35,6 +36,10 @@ import com.tencent.devops.worker.common.api.WorkerRestApiSDK
 import java.io.File
 
 interface ReportSDKApi : WorkerRestApiSDK {
+    /**
+     * 获取Api对应的Realm
+     */
+    fun getRealm(): String
 
     /**
      * 获取报告跟路径
@@ -47,11 +52,13 @@ interface ReportSDKApi : WorkerRestApiSDK {
      * 创建报告要上传的记录
      */
     fun createReportRecord(
+        buildVariables: BuildVariables,
         taskId: String,
         indexFile: String,
         name: String,
         reportType: String? = ReportTypeEnum.INTERNAL.name,
-        reportEmail: ReportEmail? = null
+        reportEmail: ReportEmail? = null,
+        token: String?
     ): Result<Boolean>
 
     /**
@@ -69,4 +76,16 @@ interface ReportSDKApi : WorkerRestApiSDK {
         buildVariables: BuildVariables,
         token: String? = null
     )
+
+    /**
+     * 获取仓库token
+     */
+    fun getRepoToken(
+        userId: String,
+        projectId: String,
+        repoName: String,
+        path: String,
+        type: TokenType,
+        expireSeconds: Long
+    ): String?
 }

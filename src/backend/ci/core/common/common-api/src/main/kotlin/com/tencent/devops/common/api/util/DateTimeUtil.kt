@@ -28,6 +28,8 @@
 package com.tencent.devops.common.api.util
 
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -61,6 +63,42 @@ object DateTimeUtil {
     }
 
     const val YYYY_MM_DD = "yyyy-MM-dd"
+
+    const val YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss"
+
+    const val YYYY_MM_DD_T_HH_MM_SSZ = "yyyy-MM-dd'T'HH:mm:ssZ"
+
+    const val YYYYMMDD = "yyyyMMdd"
+
+    const val YYYYMMDDHHMMSS = "yyyyMMddHHmmss"
+
+    const val ONE_THOUSAND_MS = 1000L
+
+    /**
+     * 获取时间列表里面的最小值
+     */
+    fun min(vararg localDateTimes: LocalDateTime): LocalDateTime {
+        var result = localDateTimes[0]
+        for (i in 1 until localDateTimes.size) {
+            if (localDateTimes[i].isBefore(result)) {
+                result = localDateTimes[i]
+            }
+        }
+        return result
+    }
+
+    /**
+     * 获取时间列表里面的最大值
+     */
+    fun max(vararg localDateTimes: LocalDateTime): LocalDateTime {
+        var result = localDateTimes[0]
+        for (i in 1 until localDateTimes.size) {
+            if (localDateTimes[i].isAfter(result)) {
+                result = localDateTimes[i]
+            }
+        }
+        return result
+    }
 
     /**
      * 单位转换，分钟转换秒
@@ -101,24 +139,35 @@ object DateTimeUtil {
         return cd.time
     }
 
+    fun getFutureTimestamp(seconds: Long): Long {
+        return System.currentTimeMillis() / 1000 + seconds
+    }
+
     /**
      * 按指定日期时间格式格式化日期时间
      * @param date 日期时间
      * @param format 格式化字符串
      * @return 字符串
      */
-    fun formatDate(date: Date, format: String = "yyyy-MM-dd HH:mm:ss"): String {
+    fun formatDate(date: Date, format: String = YYYY_MM_DD_HH_MM_SS): String {
         val simpleDateFormat = SimpleDateFormat(format)
         return simpleDateFormat.format(date)
     }
 
-    fun convertDateToFormatLocalDateTime(date: Date, format: String = "yyyy-MM-dd HH:mm:ss"): LocalDateTime {
+    fun convertDateToFormatLocalDateTime(date: Date, format: String = YYYY_MM_DD_HH_MM_SS): LocalDateTime {
         val simpleDateFormat = SimpleDateFormat(format)
         return convertDateToLocalDateTime(simpleDateFormat.parse(simpleDateFormat.format(date)))
     }
 
     fun convertLocalDateTimeToTimestamp(localDateTime: LocalDateTime?): Long {
         return localDateTime?.toEpochSecond(ZoneOffset.ofHours(8)) ?: 0L
+    }
+
+    /*
+    * 用于转化秒级时间戳，非毫秒级
+    * */
+    fun convertTimestampToLocalDateTime(timestamp: Long): LocalDateTime {
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), ZoneId.systemDefault())
     }
 
     fun convertLocalDateTimeToDate(localDateTime: LocalDateTime): Date {
@@ -129,7 +178,7 @@ object DateTimeUtil {
         return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()
     }
 
-    fun toDateTime(dateTime: LocalDateTime?, format: String = "yyyy-MM-dd HH:mm:ss"): String {
+    fun toDateTime(dateTime: LocalDateTime?, format: String = YYYY_MM_DD_HH_MM_SS): String {
         if (dateTime == null) {
             return ""
         }
@@ -144,16 +193,20 @@ object DateTimeUtil {
      * 2019-09-02T08:58:46+0000 -> xxxxx
      */
     fun zoneDateToTimestamp(timeStr: String?): Long {
+        return zoneDateToDate(timeStr)?.time ?: 0L
+    }
+
+    fun zoneDateToDate(timeStr: String?): Date? {
         try {
-            if (timeStr.isNullOrBlank()) return 0L
-            return formatter.parse(timeStr).time
+            if (timeStr.isNullOrBlank()) return null
+            return formatter.parse(timeStr)
         } catch (e: Exception) {
             try {
-                return utcTimeFormatter.parse(timeStr).time
+                return utcTimeFormatter.parse(timeStr)
             } catch (ignore: Exception) {
             }
         }
-        return 0L
+        return null
     }
 
     /**
@@ -170,12 +223,17 @@ object DateTimeUtil {
         val minute = (time - hour * timeGap * timeGap * million) / (timeGap * million)
         val second = (time - hour * timeGap * timeGap * million - minute * timeGap * million) / million
         return (if (hour == zero) "00" else if (hour >= ten) hour.toString() else "0$hour").toString() + "时" +
-            (if (minute == zero) "00" else if (minute >= ten) minute else "0$minute") + "分" +
-            (if (second == zero) "00" else if (second >= ten) second.toShort() else "0$second") + "秒"
+                (if (minute == zero) "00" else if (minute >= ten) minute else "0$minute") + "分" +
+                (if (second == zero) "00" else if (second >= ten) second.toShort() else "0$second") + "秒"
     }
 
     fun formatMilliTime(time: Long): String {
         return formatMilliTime(time.toString())
+    }
+
+    fun formatMilliTime(time: Long, format: String = YYYY_MM_DD_HH_MM_SS): String {
+        val simpleDateFormat = SimpleDateFormat(format)
+        return simpleDateFormat.format(time)
     }
 
     fun formatMilliTime(timeStr: String): String {
@@ -184,8 +242,8 @@ object DateTimeUtil {
         val minute = (time - hour * 60 * 60 * 1000) / (60 * 1000)
         val second = (time - hour * 60 * 60 * 1000 - minute * 60 * 1000) / 1000
         return (if (hour == 0L) "00" else if (hour >= 10) hour.toString() else "0$hour").toString() + "时" +
-            (if (minute == 0L) "00" else if (minute >= 10) minute else "0$minute") + "分" +
-            (if (second == 0L) "00" else if (second >= 10) second.toShort() else "0$second") + "秒"
+                (if (minute == 0L) "00" else if (minute >= 10) minute else "0$minute") + "分" +
+                (if (second == 0L) "00" else if (second >= 10) second.toShort() else "0$second") + "秒"
     }
 
     fun formatMillSecond(mss: Long): String {
@@ -212,11 +270,34 @@ object DateTimeUtil {
     }
 
     /**
+     * 转换成天数
+     */
+    fun formatDay(mss: Long): String {
+        if (mss == 0L) return "0"
+        return ((mss / (1000 * 60 * 60 * 24)) + 1).toString()
+    }
+
+    /**
      * 将格式化的日期时间字符串转换为LocalDateTime对象
      */
-    fun stringToLocalDateTime(dateTimeStr: String, formatStr: String = "yyyy-MM-dd HH:mm:ss"): LocalDateTime {
+    fun stringToLocalDateTime(dateTimeStr: String, formatStr: String = YYYY_MM_DD_HH_MM_SS): LocalDateTime {
         val format = SimpleDateFormat(formatStr)
         val date = format.parse(dateTimeStr)
         return convertDateToLocalDateTime(date)
+    }
+
+    fun stringToTimestamp(dateTimeStr: String, formatStr: String = YYYY_MM_DD_HH_MM_SS): Long {
+        return stringToLocalDateTime(dateTimeStr, formatStr).timestamp()
+    }
+
+    /**
+     * 将格式化的日期时间字符串转换为LocalDate对象
+     */
+    fun stringToLocalDate(dateStr: String?): LocalDate? {
+        var localDate: LocalDate? = null
+        if (!dateStr.isNullOrBlank()) {
+            localDate = LocalDate.parse(dateStr)
+        }
+        return localDate
     }
 }

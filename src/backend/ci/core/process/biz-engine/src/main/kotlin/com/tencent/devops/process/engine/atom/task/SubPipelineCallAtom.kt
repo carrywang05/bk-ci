@@ -30,33 +30,35 @@ package com.tencent.devops.process.engine.atom.task
 import com.tencent.devops.common.api.pojo.ErrorCode
 import com.tencent.devops.common.api.pojo.ErrorType
 import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.api.util.MessageUtil
+import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.log.utils.BuildLogPrinter
 import com.tencent.devops.common.pipeline.enums.BuildStatus
 import com.tencent.devops.common.pipeline.enums.ChannelCode
-import com.tencent.devops.common.pipeline.enums.StartType
 import com.tencent.devops.common.pipeline.pojo.element.SubPipelineCallElement
 import com.tencent.devops.common.pipeline.pojo.element.atom.SubPipelineType
+import com.tencent.devops.common.web.utils.I18nUtil
+import com.tencent.devops.process.api.builds.BuildSubPipelineResource
 import com.tencent.devops.process.constant.ProcessMessageCode.ERROR_BUILD_TASK_SUBPIPELINEID_NOT_EXISTS
 import com.tencent.devops.process.constant.ProcessMessageCode.ERROR_BUILD_TASK_SUBPIPELINEID_NULL
+import com.tencent.devops.process.constant.ProcessMessageCode.ERROR_NO_BUILD_RECORD_FOR_CORRESPONDING_SUB_PIPELINE
+import com.tencent.devops.process.constant.ProcessMessageCode.ERROR_NO_CORRESPONDING_SUB_PIPELINE
 import com.tencent.devops.process.engine.atom.AtomResponse
 import com.tencent.devops.process.engine.atom.IAtomTask
+import com.tencent.devops.process.engine.atom.defaultFailAtomResponse
 import com.tencent.devops.process.engine.exception.BuildTaskException
 import com.tencent.devops.process.engine.pojo.PipelineBuildTask
 import com.tencent.devops.process.engine.service.PipelineRepositoryService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
-import com.tencent.devops.process.service.pipeline.PipelineBuildService
 import com.tencent.devops.process.utils.PIPELINE_START_CHANNEL
-import com.tencent.devops.process.utils.PIPELINE_START_PIPELINE_USER_ID
-import com.tencent.devops.process.utils.PIPELINE_START_TYPE
-import com.tencent.devops.process.utils.PIPELINE_START_USER_ID
 import org.springframework.stereotype.Component
 
 @Suppress("UNUSED")
 @Component
 class SubPipelineCallAtom constructor(
+    private val client: Client,
     private val buildLogPrinter: BuildLogPrinter,
     private val pipelineRuntimeService: PipelineRuntimeService,
-    private val pipelineBuildService: PipelineBuildService,
     private val pipelineRepositoryService: PipelineRepositoryService
 ) : IAtomTask<SubPipelineCallElement> {
 
@@ -75,22 +77,30 @@ class SubPipelineCallAtom constructor(
                 buildStatus = BuildStatus.FAILED,
                 errorType = ErrorType.USER,
                 errorCode = ErrorCode.USER_RESOURCE_NOT_FOUND,
-                errorMsg = "找不到对应子流水线"
+                errorMsg = MessageUtil.getMessageByLocale(
+                    ERROR_NO_CORRESPONDING_SUB_PIPELINE,
+                    I18nUtil.getDefaultLocaleLanguage()
+                )
             )
         } else {
             val subBuildId = task.subBuildId!!
-            val subBuildInfo = pipelineRuntimeService.getBuildInfo(subBuildId)
+            val subBuildInfo = pipelineRuntimeService.getBuildInfo(task.subProjectId!!, subBuildId)
             return if (subBuildInfo == null) {
                 buildLogPrinter.addRedLine(
                     buildId = task.buildId,
                     message = "Can not found sub pipeline build record(${task.subBuildId})",
-                    tag = task.taskId, jobId = task.containerHashId, executeCount = task.executeCount ?: 1
+                    tag = task.taskId, containerHashId = task.containerHashId, executeCount = task.executeCount ?: 1,
+                    jobId = null,
+                    stepId = task.stepId
                 )
                 AtomResponse(
                     buildStatus = BuildStatus.FAILED,
                     errorType = ErrorType.USER,
                     errorCode = ErrorCode.USER_RESOURCE_NOT_FOUND,
-                    errorMsg = "找不到对应子流水线的构建记录"
+                    errorMsg = MessageUtil.getMessageByLocale(
+                        ERROR_NO_BUILD_RECORD_FOR_CORRESPONDING_SUB_PIPELINE,
+                        I18nUtil.getDefaultLocaleLanguage()
+                    )
                 )
             } else { // 此处逻辑与 研发商店上架的BuildSubPipelineResourceImpl.getSubPipelineStatus 不同，
                 // 原因是后者在插件实现上检测这种情况并判断，本处为内置的子流水线插件，需在此增加判断处理
@@ -105,7 +115,9 @@ class SubPipelineCallAtom constructor(
                 buildLogPrinter.addYellowLine(
                     buildId = task.buildId,
                     message = "sub pipeline status: ${status.name}",
-                    tag = task.taskId, jobId = task.containerHashId, executeCount = task.executeCount ?: 1
+                    tag = task.taskId, containerHashId = task.containerHashId, executeCount = task.executeCount ?: 1,
+                    jobId = null,
+                    stepId = task.stepId
                 )
 
                 if (force && !status.isFinish()) { // 补充强制终止对子流水线插件的处理
@@ -114,6 +126,7 @@ class SubPipelineCallAtom constructor(
                         pipelineId = subBuildInfo.pipelineId,
                         buildId = subBuildId,
                         userId = subBuildInfo.startUser,
+                        executeCount = subBuildInfo.executeCount ?: 1,
                         buildStatus = BuildStatus.CANCELED
                     )
                     status = BuildStatus.CANCELED
@@ -150,44 +163,65 @@ class SubPipelineCallAtom constructor(
             throw BuildTaskException(
                 errorType = ErrorType.USER,
                 errorCode = ERROR_BUILD_TASK_SUBPIPELINEID_NULL.toInt(),
-                errorMsg = "子流水线ID参数为空，请检查流水线重新保存后并重新执行",
+                errorMsg = MessageUtil.getMessageByLocale(
+                    ERROR_BUILD_TASK_SUBPIPELINEID_NULL,
+                    I18nUtil.getDefaultLocaleLanguage()
+                ),
                 pipelineId = task.pipelineId, buildId = task.buildId, taskId = task.taskId
             )
         }
 
-        val pipelineInfo = pipelineRepositoryService.getPipelineInfo(task.projectId, subPipelineId!!)
+        val pipelineInfo = pipelineRepositoryService.getPipelineInfo(task.projectId, subPipelineId)
             ?: throw BuildTaskException(
                 errorType = ErrorType.USER,
                 errorCode = ERROR_BUILD_TASK_SUBPIPELINEID_NOT_EXISTS.toInt(),
-                errorMsg = "子流水线[$subPipelineId]不存在,请检查流水线是否还存在",
+                errorMsg = MessageUtil.getMessageByLocale(
+                    ERROR_BUILD_TASK_SUBPIPELINEID_NOT_EXISTS,
+                    I18nUtil.getDefaultLocaleLanguage()
+                ),
                 pipelineId = task.pipelineId, buildId = task.buildId, taskId = task.taskId
             )
 
-        val startType = runVariables.getValue(PIPELINE_START_TYPE)
-        val userId = if (startType == StartType.PIPELINE.name) {
-            runVariables.getValue(PIPELINE_START_PIPELINE_USER_ID)
-        } else {
-            runVariables.getValue(PIPELINE_START_USER_ID)
-        }
-        val startParams = mutableMapOf<String, Any>()
+        val startParams = mutableMapOf<String, String>()
         param.parameters?.forEach {
             startParams[it.key] = parseVariable(it.value, runVariables)
         }
-        val subBuildId = pipelineBuildService.subPipelineStartup(
-            userId = userId,
+
+        val result = client.get(BuildSubPipelineResource::class).callPipelineStartup(
             projectId = task.projectId,
             parentPipelineId = task.pipelineId,
-            parentBuildId = task.buildId,
-            parentTaskId = task.taskId,
-            pipelineId = subPipelineId,
+            callPipelineId = subPipelineId,
+            buildId = task.buildId,
             channelCode = ChannelCode.valueOf(runVariables.getValue(PIPELINE_START_CHANNEL)),
-            parameters = startParams
+            atomCode = task.taskId,
+            taskId = task.taskId,
+            runMode = if (param.asynchronous) {
+                "asyn"
+            } else {
+                "syn"
+            },
+            values = startParams,
+            executeCount = task.executeCount
         )
+
+        if (result.isNotOk()) {
+            buildLogPrinter.addErrorLine(
+                buildId = task.buildId,
+                message = result.message ?: result.status.toString(),
+                tag = task.taskId, containerHashId = task.containerHashId, executeCount = task.executeCount ?: 1,
+                jobId = null, stepId = task.stepId
+            )
+            return defaultFailAtomResponse
+        }
+
+        val subBuildId = result.data?.id
+
         buildLogPrinter.addLine(
             buildId = task.buildId,
             message = "<a target='_blank' href='/console/pipeline/${task.projectId}/" +
                 "$subPipelineId/detail/$subBuildId'>Click Link[${pipelineInfo.pipelineName}]</a>",
-            tag = task.taskId, jobId = task.containerHashId, executeCount = task.executeCount ?: 1
+            tag = task.taskId, containerHashId = task.containerHashId, executeCount = task.executeCount ?: 1,
+            jobId = null, stepId = task.stepId
         )
         return AtomResponse(if (param.asynchronous) BuildStatus.SUCCEED else BuildStatus.CALL_WAITING)
     }

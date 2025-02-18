@@ -27,22 +27,33 @@
 
 package com.tencent.devops.common.api.enums
 
-enum class ScmType {
-    CODE_SVN,
-    CODE_GIT,
-    CODE_GITLAB,
-    GITHUB,
-    CODE_TGIT;
+enum class ScmType(val alis: String) {
+    CODE_SVN("svn"),
+    CODE_GIT("git"),
+    CODE_GITLAB("gitlab"),
+    GITHUB("github"),
+    CODE_TGIT("tgit"),
+    CODE_P4("p4")
+    ;
 
     companion object {
         fun parse(type: ScmType): Short {
             return when (type) {
-                ScmType.CODE_SVN -> 1.toShort()
-                ScmType.CODE_GIT -> 2.toShort()
-                ScmType.CODE_GITLAB -> 3.toShort()
-                ScmType.GITHUB -> 4.toShort()
-                ScmType.CODE_TGIT -> 5.toShort()
+                CODE_SVN -> 1.toShort()
+                CODE_GIT -> 2.toShort()
+                CODE_GITLAB -> 3.toShort()
+                GITHUB -> 4.toShort()
+                CODE_TGIT -> 5.toShort()
+                CODE_P4 -> 6.toShort()
             }
+        }
+
+        fun parse(alis: String?): ScmType? {
+            if (alis.isNullOrBlank()) return null
+            values().forEach {
+                if (alis == it.alis) return it
+            }
+            return null
         }
     }
 }

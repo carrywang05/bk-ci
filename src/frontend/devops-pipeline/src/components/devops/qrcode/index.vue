@@ -1,10 +1,12 @@
 
 <template>
-    <div class="qrcode-content" ref="qrcode"></div>
+    <div
+        class="qrcode-content"
+        ref="qrcode"
+    ></div>
 </template>
 
 <script>
-    import QRCode from './qrcode.min'
 
     export default {
         props: {
@@ -39,7 +41,8 @@
                 val && this.makeCode(val)
             }
         },
-        mounted () {
+        async mounted () {
+            const { default: QRCode } = await import('./qrcode.min')
             this.qrCode = new QRCode(this.$refs.qrcode, {
                 text: this.text,
                 width: this.size,

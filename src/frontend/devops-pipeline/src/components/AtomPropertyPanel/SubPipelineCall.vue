@@ -1,8 +1,25 @@
 <template>
     <div class="bk-form bk-form-vertical">
         <template v-for="(obj, key) in newModel">
-            <form-field v-if="!isHidden(obj, element) && !obj.hidden" :key="key" :desc="obj.desc" :required="obj.required" :label="obj.label" :is-error="errors.has(key)" :error-msg="errors.first(key)">
-                <component :is="obj.component" :element="element" :class="obj.class" :name="key" v-validate.initial="Object.assign({}, { max: getMaxLengthByType(obj.component) }, obj.rule, { required: obj.required })" :handle-change="handleUpdateElement" :value="element[key]" v-bind="obj"></component>
+            <form-field
+                v-if="!isHidden(obj, element) && !obj.hidden"
+                :key="key"
+                :desc="obj.desc"
+                :required="obj.required"
+                :label="obj.label"
+                :is-error="errors.has(key)"
+                :error-msg="errors.first(key)"
+            >
+                <component
+                    :is="obj.component"
+                    :element="element"
+                    :class="obj.class"
+                    :name="key"
+                    v-validate.initial="Object.assign({}, { max: getMaxLengthByType(obj.component) }, obj.rule, { required: obj.required })"
+                    :handle-change="handleUpdateElement"
+                    :value="element[key]"
+                    v-bind="obj"
+                ></component>
             </form-field>
         </template>
     </div>
@@ -39,7 +56,7 @@
                 const paramsMap = {}
                 if (this.element.inputParam) {
                     const rowArr = this.element.inputParam.split('\n')
-                    rowArr.map(row => {
+                    rowArr.forEach(row => {
                         const itemArr = row.split('=')
                         if (itemArr[0]) {
                             Object.assign(paramsMap, { [itemArr[0]]: itemArr[1] || '' })

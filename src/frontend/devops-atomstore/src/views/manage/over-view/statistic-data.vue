@@ -7,7 +7,7 @@
             </section>
             <span class="manage-gap"></span>
             <section class="trend-pic manage-section">
-                <h5 class="manage-title">{{ $t('store.趋势图')}}</h5>
+                <h5 class="manage-title">{{ $t('store.趋势图') }}</h5>
                 <trend v-bind="componentData"></trend>
             </section>
         </section>
@@ -43,7 +43,7 @@
 
         computed: {
             ...mapGetters('store', {
-                'detail': 'getDetail'
+                detail: 'getDetail'
             }),
 
             componentData () {

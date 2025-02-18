@@ -11,7 +11,8 @@
             :placeholder="$t('editPage.selectParamValueTips')"
             :disabled="disabled && !editValueOnly"
             :key="param.valueType"
-            :value="getSelectorDefaultVal(param)">
+            :value="getSelectorDefaultVal(param)"
+        >
         </selector>
         <enum-input
             v-if="isBooleanParam(param.valueType)"
@@ -20,7 +21,8 @@
             :disabled="disabled && !editValueOnly"
             :data-vv-scope="`param-${param.key}`"
             :handle-change="(name, value) => handleParamChange(name, value, paramIndex)"
-            :value="param.value">
+            :value="param.value"
+        >
         </enum-input>
         <vuex-input
             v-if="isStringParam(param.valueType)"
@@ -30,7 +32,8 @@
             :click-unfold="true"
             :data-vv-scope="`param-${param.key}`"
             :placeholder="$t('editPage.paramValueTips')"
-            :value="param.value" />
+            :value="param.value"
+        />
         <vuex-textarea
             v-if="isTextareaParam(param.valueType)"
             :click-unfold="true"
@@ -39,7 +42,8 @@
             name="value"
             :data-vv-scope="`param-${param.key}`"
             :placeholder="$t('editPage.paramValueTips')"
-            :value="param.value" />
+            :value="param.value"
+        />
     </div>
 </template>
 
@@ -114,13 +118,15 @@
             transformOpt (opts) {
                 const uniqueMap = {}
                 opts = opts.filter(opt => opt.key.length)
-                return Array.isArray(opts) ? opts.filter(opt => {
-                    if (!uniqueMap[opt.key]) {
-                        uniqueMap[opt.key] = 1
-                        return true
-                    }
-                    return false
-                }).map(opt => ({ id: opt.key, name: opt.value })) : []
+                return Array.isArray(opts)
+                    ? opts.filter(opt => {
+                        if (!uniqueMap[opt.key]) {
+                            uniqueMap[opt.key] = 1
+                            return true
+                        }
+                        return false
+                    }).map(opt => ({ id: opt.key, name: opt.value }))
+                    : []
             },
 
             getSelectorDefaultVal ({ valueType, value = '' }) {

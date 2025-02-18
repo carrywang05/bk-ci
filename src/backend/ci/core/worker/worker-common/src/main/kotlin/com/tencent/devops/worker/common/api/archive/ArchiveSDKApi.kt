@@ -27,6 +27,7 @@
 
 package com.tencent.devops.worker.common.api.archive
 
+import com.tencent.bkrepo.repository.pojo.token.TokenType
 import com.tencent.devops.artifactory.pojo.enums.FileTypeEnum
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.process.pojo.BuildVariables
@@ -36,6 +37,10 @@ import java.io.File
 @Suppress("ALL")
 interface ArchiveSDKApi : WorkerRestApiSDK {
 
+    /**
+     * 获取Api对应的Realm
+     */
+    fun getRealm(): String
     /**
      * 归档构件到仓库中自定义路径
      * @param file 构件
@@ -120,16 +125,26 @@ interface ArchiveSDKApi : WorkerRestApiSDK {
     /**
      * 通用上传文件接口
      * @param url 请求地址
-     * @param destPath 上传目标文件路径
      * @param file 上传的文件
      * @param headers 请求头
      * @param isVmBuildEnv 是否是有编译环境
      */
     fun uploadFile(
         url: String,
-        destPath: String,
         file: File,
         headers: Map<String, String>? = emptyMap(),
-        isVmBuildEnv: Boolean
+        isVmBuildEnv: Boolean? = null
     ): Result<Boolean>
+
+    /**
+     * 获取仓库token
+     */
+    fun getRepoToken(
+        userId: String,
+        projectId: String,
+        repoName: String,
+        path: String,
+        type: TokenType,
+        expireSeconds: Long
+    ): String?
 }

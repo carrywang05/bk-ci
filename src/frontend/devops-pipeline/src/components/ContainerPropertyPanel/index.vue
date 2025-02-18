@@ -1,18 +1,60 @@
 <template>
-    <bk-sideslider class="bkci-property-panel" width="640" :is-show.sync="visible" :quick-close="true">
-        <header class="container-panel-header" slot="header">
+    <bk-sideslider
+        class="bkci-property-panel"
+        :class="{ 'with-variable-open': showVariable }"
+        :z-index="2016"
+        :width="640"
+        :is-show.sync="visible"
+        :quick-close="true"
+    >
+        <header
+            class="container-panel-header"
+            slot="header"
+        >
             <div class="job-name-edit">
-                <input v-if="nameEditing" v-bk-focus="1" @blur="toggleEditName(false)" @keydown.enter="toggleEditName(false)" class="bk-form-input" name="name" maxlength="30" v-validate.initial="'required'" @keyup.enter="toggleEditName" @input="handleContainerChange" :placeholder="$t('nameInputTips')" :value="container.name" />
-                <p v-if="!nameEditing">{{ container.name }} ({{ stageIndex + 1}}-{{ containerIndex + 1}})</p>
-                <i @click="toggleEditName(true)" class="devops-icon icon-edit" :class="nameEditing ? 'editing' : ''" />
+                <input
+                    v-if="nameEditing"
+                    v-bk-focus="1"
+                    @blur="toggleEditName(false)"
+                    @keydown.enter="toggleEditName(false)"
+                    class="bk-form-input"
+                    name="name"
+                    maxlength="30"
+                    v-validate.initial="'required'"
+                    @keyup.enter="toggleEditName"
+                    @input="handleContainerChange"
+                    :placeholder="$t('nameInputTips')"
+                    :value="container.name"
+                />
+                <p v-if="!nameEditing">{{ container.name }} ({{ stageIndex + 1 }}-{{ containerIndex + 1 }})</p>
+                <i
+                    @click="toggleEditName(true)"
+                    class="devops-icon icon-edit"
+                    :class="nameEditing ? 'editing' : ''"
+                />
+            </div>
+            <div
+                v-if="showDebugDockerBtn"
+                :class="!editable ? 'control-bar' : 'debug-btn'"
+            >
+                <bk-button
+                    theme="warning"
+                    @click="startDebug"
+                >
+                    {{ $t('editPage.docker.debugConsole') }}
+                </bk-button>
             </div>
         </header>
-        <container-content v-bind="$props" slot="content" ref="container"></container-content>
+        <container-content
+            v-bind="$props"
+            slot="content"
+            ref="container"
+        ></container-content>
     </bk-sideslider>
 </template>
 
 <script>
-    import { mapActions, mapState } from 'vuex'
+    import { mapActions, mapState, mapGetters } from 'vuex'
     import ContainerContent from './ContainerContent'
 
     export default {
@@ -22,10 +64,12 @@
         },
         props: {
             containerIndex: Number,
+            containerGroupIndex: Number,
             stageIndex: Number,
             stages: Array,
             editable: Boolean,
-            title: String
+            title: String,
+            pipeline: Object
         },
         data () {
             return {
@@ -34,7 +78,11 @@
         },
         computed: {
             ...mapState('atom', [
+                'showVariable',
                 'isPropertyPanelVisible'
+            ]),
+            ...mapGetters('atom', [
+                'checkShowDebugDockerBtn'
             ]),
             container () {
                 try {
@@ -53,6 +101,9 @@
                         isShow: value
                     })
                 }
+            },
+            showDebugDockerBtn () {
+                return this.checkShowDebugDockerBtn(this.container, this.$route.name, this.execDetail)
             }
         },
 
@@ -72,6 +123,9 @@
                         name: value
                     }
                 })
+            },
+            startDebug () {
+                this.$refs.container.startDebug()
             }
         }
     }

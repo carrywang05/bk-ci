@@ -27,46 +27,65 @@
 
 package com.tencent.devops.agent
 
-import com.tencent.devops.agent.runner.WorkRunner
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.tencent.devops.agent.service.BuildLessStarter
 import com.tencent.devops.common.api.enums.EnumLoader
+import com.tencent.devops.common.api.util.DHUtil
+import com.tencent.devops.common.api.util.OkhttpUtils
 import com.tencent.devops.common.pipeline.ElementSubTypeRegisterLoader
+import com.tencent.devops.worker.WorkRunner
 import com.tencent.devops.worker.common.BUILD_TYPE
 import com.tencent.devops.worker.common.Runner
 import com.tencent.devops.worker.common.WorkspaceInterface
 import com.tencent.devops.worker.common.api.ApiFactory
 import com.tencent.devops.worker.common.env.BuildType
+import com.tencent.devops.worker.common.env.DockerEnv
 import com.tencent.devops.worker.common.task.TaskFactory
 import com.tencent.devops.worker.common.utils.WorkspaceUtils
+import okhttp3.Request
+import okhttp3.Response
 import java.io.File
-import java.lang.RuntimeException
+import java.time.LocalDateTime
 
-@Suppress("ALL")
 fun main(args: Array<String>) {
+    // 调用 DHUtil 初始化 SecurityProvider
+    DHUtil
     EnumLoader.enumModified()
     ElementSubTypeRegisterLoader.registerElementForJsonUtil()
     ApiFactory.init()
     TaskFactory.init()
     val buildType = System.getProperty(BUILD_TYPE)
     when (buildType) {
-        BuildType.DOCKER.name ->
+        BuildType.DOCKER.name -> {
+            val jobPoolType = DockerEnv.getJobPool()
+            // 无编译构建，轮询等待任务
+            if (jobPoolType != null && jobPoolType == "BUILD_LESS") {
+                waitBuildLessJobStart()
+            } else if (jobPoolType != null && jobPoolType == "K8S_BUILD_LESS") {
+                BuildLessStarter.waitK8sBuildLessJobStart()
+            }
+
             Runner.run(object : WorkspaceInterface {
-                override fun getWorkspaceAndLogDir(variables: Map<String, String>, pipelineId: String): Pair<File, File> {
-                    val workspace = System.getProperty("devops_workspace")
-
-                    val workspaceDir = if (workspace.isNullOrBlank()) {
-                        File("/data/devops/workspace")
-                    } else {
-                        File(workspace)
-                    }
-                    workspaceDir.mkdirs()
-
+                override fun getWorkspaceAndLogDir(
+                    variables: Map<String, String>,
+                    pipelineId: String
+                ): Pair<File, File> {
+                    val workspaceDir = WorkspaceUtils.getWorkspaceDir(
+                        buildType = BuildType.DOCKER,
+                        workspace = "/data/devops/workspace"
+                    )
                     val logPathDir = WorkspaceUtils.getPipelineLogDir(pipelineId)
                     return Pair(workspaceDir, logPathDir)
                 }
             })
+        }
         BuildType.WORKER.name -> {
             Runner.run(object : WorkspaceInterface {
-                override fun getWorkspaceAndLogDir(variables: Map<String, String>, pipelineId: String): Pair<File, File> {
+                override fun getWorkspaceAndLogDir(
+                    variables: Map<String, String>,
+                    pipelineId: String
+                ): Pair<File, File> {
                     val workspaceDir = WorkspaceUtils.getPipelineWorkspace(pipelineId, "")
                     if (workspaceDir.exists()) {
                         if (!workspaceDir.isDirectory) {
@@ -89,5 +108,56 @@ fun main(args: Array<String>) {
             }
             throw RuntimeException("Unknown build type - $buildType")
         }
+    }
+}
+
+private fun waitBuildLessJobStart() {
+    var startFlag = false
+    val dockerHostIp = DockerEnv.getDockerHostIp()
+    val dockerHostPort = Integer.valueOf(DockerEnv.getDockerHostPort())
+    val hostname = DockerEnv.getHostname()
+    val loopUrl = "http://$dockerHostIp:$dockerHostPort/build/task/claim?containerId=$hostname"
+
+    val request = Request.Builder()
+        .url(loopUrl)
+        .header("Accept", "application/json")
+        .get()
+        .build()
+    do {
+        println("${LocalDateTime.now()} BuildLess loopUrl: $loopUrl")
+
+        try {
+            OkhttpUtils.doHttp(request).use { resp ->
+                startFlag = doResponse(resp)
+            }
+        } catch (e: Exception) {
+            println("${LocalDateTime.now()} Get buildLessTask error. continue loop... \n$e")
+        }
+
+        if (!startFlag) {
+            Thread.sleep(1000)
+        }
+    } while (!startFlag)
+}
+
+private fun doResponse(
+    resp: Response
+): Boolean {
+    val responseBody = resp.body?.string() ?: ""
+    println("${LocalDateTime.now()} Get buildLessTask response: $responseBody")
+    return if (resp.isSuccessful && responseBody.isNotBlank()) {
+        val buildLessTask: Map<String, String> = jacksonObjectMapper().readValue<Map<String, String>>(responseBody)
+        buildLessTask.forEach { (t, u) ->
+            when (t) {
+                "agentId" -> DockerEnv.setAgentId(u)
+                "secretKey" -> DockerEnv.setAgentSecretKey(u)
+                "projectId" -> DockerEnv.setProjectId(u)
+                "buildId" -> DockerEnv.setBuildId(u)
+            }
+        }
+        true
+    } else {
+        println("${LocalDateTime.now()} No buildLessTask, resp: ${resp.body} continue loop...")
+        false
     }
 }

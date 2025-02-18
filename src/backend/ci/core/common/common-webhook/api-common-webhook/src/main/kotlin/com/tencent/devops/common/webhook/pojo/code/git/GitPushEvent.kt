@@ -28,6 +28,9 @@
 package com.tencent.devops.common.webhook.pojo.code.git
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.tencent.devops.common.webhook.enums.code.tgit.TGitPushActionKind
+import com.tencent.devops.common.webhook.enums.code.tgit.TGitPushOperationKind
 
 @Suppress("ALL")
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -39,12 +42,34 @@ data class GitPushEvent(
     val user_name: String,
     val project_id: Long,
     val repository: GitCommitRepository,
-    val commits: List<GitCommit>,
+    val commits: List<GitCommit>?,
     val total_commits_count: Int,
     val operation_kind: String?,
-    val action_kind: String?
+    val action_kind: String?,
+    val push_options: Map<String, String>?,
+    @JsonProperty("push_timestamp")
+    val pushTimestamp: String?,
+    val create_and_update: Boolean?,
+    @JsonProperty("diff_files")
+    val diffFiles: List<GitDiffFile>?
 ) : GitEvent() {
     companion object {
         const val classType = "push"
+        const val SHORT_COMMIT_ID_LENGTH = 8
     }
+}
+
+fun GitPushEvent.isDeleteBranch(): Boolean {
+    // 工蜂web端删除
+    if (action_kind == TGitPushActionKind.DELETE_BRANCH.value) {
+        return true
+    }
+    // 发送到工蜂的客户端删除
+    if (action_kind == TGitPushActionKind.CLIENT_PUSH.value &&
+        operation_kind == TGitPushOperationKind.DELETE.value &&
+        after.filter { it != '0' }.isBlank()
+    ) {
+        return true
+    }
+    return false
 }

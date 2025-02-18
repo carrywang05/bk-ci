@@ -5,11 +5,13 @@
         <p class="btns-row">
             <slot name="btns">
                 <template v-if="btns.length">
-                    <button class="bk-button"
+                    <button
+                        class="bk-button"
                         v-for="(btn, index) in btns"
                         :key="index"
                         :class="[`bk-${btn.type}`, `bk-button-${btn.size}`]"
-                        @click="btn.handler">
+                        @click="btn.handler"
+                    >
                         {{ btn.text }}
                     </button>
                 </template>

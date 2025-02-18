@@ -1,12 +1,22 @@
 <template>
     <article class="g-store-main">
-        <bread-crumbs :bread-crumbs="navList" :type="currentTabName.slice(0, -4)"></bread-crumbs>
+        <bread-crumbs
+            :bread-crumbs="navList"
+            :type="currentTabName.slice(0, -4)"
+        ></bread-crumbs>
 
-        <transition-tab :panels="tabList"
+        <transition-tab
+            :panels="tabList"
             @tab-change="tabChange"
         >
             <template v-slot:tool>
-                <a class="title-work" target="_blank" :href="link.link" v-for="link in currentTab.links" :key="link.name">{{ link.name }}</a>
+                <a
+                    class="title-work"
+                    target="_blank"
+                    :href="link.link"
+                    v-for="link in currentTab.links"
+                    :key="link.name"
+                >{{ link.name }}</a>
             </template>
         </transition-tab>
 
@@ -19,7 +29,7 @@
 <script>
     import transitionTab from '@/components/transition-tab.vue'
     import breadCrumbs from '@/components/bread-crumbs.vue'
-    import * as cookie from 'js-cookie'
+    import cookie from 'js-cookie'
     let currentProjectCode = cookie.get(X_DEVOPS_PROJECT_ID)
     if (!currentProjectCode) currentProjectCode = (window.projectList[0] || {}).projectCode
 
@@ -33,24 +43,39 @@
             return {
                 currentTabName: this.$route.name,
                 tabList: [
-                    { name: 'atomWork',
-                      label: this.$t('store.流水线插件'),
-                      links: [
-                          { name: this.$t('store.插件指引'), link: `${DOCS_URL_PREFIX}/store/plugins/create-plugin` },
-                          { name: this.$t('store.debugTask'), link: `/console/pipeline/${currentProjectCode}/atomDebug` }
-                      ]
+                    {
+                        name: 'atomWork',
+                        label: this.$t('store.流水线插件'),
+                        links: [
+                            {
+                                name: this.$t('store.插件指引'),
+                                link: this.BKCI_DOCS.PLUGIN_GUIDE_DOC
+                            },
+                            {
+                                name: this.$t('store.debugTask'),
+                                link: `/console/pipeline/${currentProjectCode}/atomDebug`
+                            }
+                        ]
                     },
-                    { name: 'templateWork',
-                      label: this.$t('store.流水线模板'),
-                      links: [
-                          { name: this.$t('store.模版指引'), link: `${DOCS_URL_PREFIX}/store/store-home` }
-                      ]
+                    {
+                        name: 'templateWork',
+                        label: this.$t('store.流水线模板'),
+                        links: [
+                            {
+                                name: this.$t('store.模版指引'),
+                                link: this.BKCI_DOCS.TEMPLATE_GUIDE_DOC
+                            }
+                        ]
                     },
-                    { name: 'imageWork',
-                      label: this.$t('store.容器镜像'),
-                      links: [
-                          { name: this.$t('store.镜像指引'), link: `${DOCS_URL_PREFIX}/store/ci-images/image-build` }
-                      ]
+                    {
+                        name: 'imageWork',
+                        label: this.$t('store.容器镜像'),
+                        links: [
+                            {
+                                name: this.$t('store.镜像指引'),
+                                link: this.BKCI_DOCS.IMAGE_GUIDE_DOC
+                            }
+                        ]
                     }
                 ]
             }

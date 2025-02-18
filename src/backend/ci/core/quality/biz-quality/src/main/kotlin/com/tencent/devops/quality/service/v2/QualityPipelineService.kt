@@ -88,7 +88,7 @@ class QualityPipelineService @Autowired constructor(
     fun userListTemplateRangeDetail(request: TemplateRangeDetailRequest): List<RuleTemplateRange> {
         with(request) {
             val templateMap = if (templateIds.isNotEmpty()) client.get(ServicePTemplateResource::class)
-                .listTemplateById(templateIds, null).data?.templates ?: mapOf()
+                .listTemplateById(templateIds, projectId, null).data?.templates ?: mapOf()
             else mapOf()
             val templateElementsMap = templateMap.map { template ->
                 val model = template.value
@@ -166,7 +166,7 @@ class QualityPipelineService @Autowired constructor(
 
                         val data = t.taskParams["data"] as? Map<String, Any>
                         val input = data?.get("input") as? Map<String, Any>
-                        val newAsync = input?.get("asynchronous") as? Boolean
+                        val newAsync = input?.get("asyncTask") as? Boolean
                         asynchronous == true || newAsync == true
                     }
                     RangeExistElement(

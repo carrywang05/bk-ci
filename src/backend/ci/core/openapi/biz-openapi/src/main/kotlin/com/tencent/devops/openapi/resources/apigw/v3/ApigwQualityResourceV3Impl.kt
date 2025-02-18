@@ -34,11 +34,13 @@ import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.openapi.api.apigw.v3.ApigwQualityResourceV3
 import com.tencent.devops.quality.api.v2.ServiceQualityInterceptResource
 import com.tencent.devops.quality.api.v2.ServiceQualityRuleResource
+import com.tencent.devops.quality.api.v3.ServiceQualityRuleResource as ServiceQualityRuleResourceV3
 import com.tencent.devops.quality.api.v2.pojo.request.RuleCreateRequest
 import com.tencent.devops.quality.api.v2.pojo.request.RuleUpdateRequest
 import com.tencent.devops.quality.api.v2.pojo.response.QualityRuleSummaryWithPermission
 import com.tencent.devops.quality.pojo.RuleInterceptHistory
 import com.tencent.devops.common.quality.pojo.enums.RuleInterceptResult
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 
 @RestResource
@@ -54,7 +56,13 @@ class ApigwQualityResourceV3Impl @Autowired constructor(
         page: Int?,
         pageSize: Int?
     ): Result<Page<QualityRuleSummaryWithPermission>> {
-        return client.get(ServiceQualityRuleResource::class).list(userId, projectId, page, pageSize)
+        logger.info("OPENAPI_QUALITY_V3|$userId|list rule|$projectId|$page|$pageSize")
+        return client.get(ServiceQualityRuleResource::class).list(
+            userId = userId,
+            projectId = projectId,
+            page = page ?: 1,
+            pageSize = pageSize ?: 20
+        )
     }
 
     override fun createRule(
@@ -64,6 +72,7 @@ class ApigwQualityResourceV3Impl @Autowired constructor(
         userId: String,
         rule: RuleCreateRequest
     ): Result<String> {
+        logger.info("OPENAPI_QUALITY_V3|$userId|create rule|$projectId|$rule")
         return client.get(ServiceQualityRuleResource::class).create(userId, projectId, rule)
     }
 
@@ -75,6 +84,7 @@ class ApigwQualityResourceV3Impl @Autowired constructor(
         ruleHashId: String,
         rule: RuleUpdateRequest
     ): Result<Boolean> {
+        logger.info("OPENAPI_QUALITY_V3|$userId|update rule|$projectId|$ruleHashId|$rule")
         return client.get(ServiceQualityRuleResource::class).update(userId, projectId, ruleHashId, rule)
     }
 
@@ -85,6 +95,7 @@ class ApigwQualityResourceV3Impl @Autowired constructor(
         userId: String,
         ruleHashId: String
     ): Result<Boolean> {
+        logger.info("OPENAPI_QUALITY_V3|$userId|delete rule|$projectId|$ruleHashId")
         return client.get(ServiceQualityRuleResource::class).delete(userId, projectId, ruleHashId)
     }
 
@@ -101,14 +112,52 @@ class ApigwQualityResourceV3Impl @Autowired constructor(
         page: Int?,
         pageSize: Int?
     ): Result<Page<RuleInterceptHistory>> {
-        return client.get(ServiceQualityInterceptResource::class).list(userId = userId,
+        logger.info(
+            "OPENAPI_QUALITY_V3|$userId|list intercepts|$projectId|$pipelineId|$ruleHashId|$interceptResult" +
+                "|$startTime|$endTime|$page|$pageSize"
+        )
+        return client.get(ServiceQualityInterceptResource::class).list(
+            userId = userId,
             projectId = projectId,
             pipelineId = pipelineId,
             ruleHashId = ruleHashId,
             interceptResult = interceptResult,
             startTime = startTime,
             endTime = endTime,
-            page = page,
-            pageSize = pageSize)
+            page = page ?: 1,
+            pageSize = pageSize ?: 20
+        )
+    }
+
+    override fun listBuildHisRule(
+        appCode: String?,
+        apigwType: String?,
+        projectId: String,
+        userId: String,
+        pipelineId: String?,
+        ruleHashId: String?,
+        startTime: Long?,
+        endTime: Long?,
+        page: Int?,
+        pageSize: Int?
+    ): Result<Page<RuleInterceptHistory>> {
+        logger.info(
+            "OPENAPI_QUALITY_V3|$userId|list build hisRule|$projectId|$pipelineId|$ruleHashId|$startTime" +
+                "|$endTime|$page|$pageSize"
+        )
+        return client.get(ServiceQualityRuleResourceV3::class).listQualityRuleBuildHis(
+            userId = userId,
+            projectId = projectId,
+            pipelineId = pipelineId,
+            ruleHashId = ruleHashId,
+            startTime = startTime,
+            endTime = endTime,
+            page = page ?: 1,
+            pageSize = pageSize ?: 20
+        )
+    }
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(ApigwQualityResourceV3Impl::class.java)
     }
 }

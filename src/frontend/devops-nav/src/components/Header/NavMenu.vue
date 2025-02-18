@@ -1,7 +1,7 @@
 <template>
     <nav
         v-clickoutside="hideNavMenu"
-        :class="{ &quot;devops-header-nav&quot;: true, &quot;active&quot;: show }"
+        :class="{ 'devops-header-nav': true, 'active': show }"
     >
         <p
             class="nav-entry"
@@ -36,7 +36,11 @@
                                 :key="service.id"
                                 class="collect-item"
                             >
-                                <img v-if="isAbsoluteUrl(service.logoUrl)" :src="service.logoUrl" class="service-logo" />
+                                <img
+                                    v-if="isAbsoluteUrl(service.logoUrl)"
+                                    :src="service.logoUrl"
+                                    class="service-logo"
+                                />
                                 <logo
                                     v-else
                                     class="service-logo"
@@ -78,12 +82,12 @@
 <script lang="ts">
     import Vue from 'vue'
     import { Component } from 'vue-property-decorator'
-    import { State, Getter, Action } from 'vuex-class'
-    import { getServiceLogoByPath, urlJoin, getServiceAliasByPath, isAbsoluteUrl } from '../../utils/util'
+    import { Action, Getter, State } from 'vuex-class'
     import { clickoutside } from '../../directives/index'
+    import eventBus from '../../utils/eventBus'
+    import { getServiceAliasByPath, getServiceLogoByPath, isAbsoluteUrl, urlJoin } from '../../utils/util'
     import Logo from '../Logo/index.vue'
     import NavBox from '../NavBox/index.vue'
-    import eventBus from '../../utils/eventBus'
 
     @Component({
         name: 'nav-menu',
@@ -162,16 +166,17 @@
             return name.replace(/^\S+?\(([\s\S]+?)\)\S*$/, '$1')
         }
 
-        gotoPage ({ link_new: linkNew }) {
-            const cAlias = this.currentPage && getServiceAliasByPath(this.currentPage['link_new'])
+        gotoPage ({ link_new: linkNew, newWindow = false, newWindowUrl = '' }) {
+            const cAlias = this.currentPage && getServiceAliasByPath(this.currentPage.link_new)
             const nAlias = getServiceAliasByPath(linkNew)
             const destUrl = this.addConsole(linkNew)
 
-            if (cAlias === nAlias && this.currentPage && this.currentPage['inject_type'] === 'iframe') {
+            if (cAlias === nAlias && this.currentPage && this.currentPage.inject_type === 'iframe') {
                 eventBus.$emit('goHome')
                 return
             }
-            this.$router.push(destUrl)
+            
+            (newWindow && newWindowUrl) ? window.open(newWindowUrl, '_blank') : this.$router.push(destUrl)
         }
 
         created () {

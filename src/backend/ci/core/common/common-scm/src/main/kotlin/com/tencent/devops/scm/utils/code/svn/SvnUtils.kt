@@ -29,6 +29,7 @@ package com.tencent.devops.scm.utils.code.svn
 
 import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.scm.exception.ScmException
+import org.apache.commons.lang3.StringUtils
 import org.tmatesoft.svn.core.SVNURL
 import org.tmatesoft.svn.core.auth.SVNPasswordAuthentication
 import org.tmatesoft.svn.core.auth.SVNSSHAuthentication
@@ -72,7 +73,13 @@ object SvnUtils {
                 false
             )
         } else {
-            SVNPasswordAuthentication.newInstance(userName, privateKey.toCharArray(), false, svnURL, false)
+            SVNPasswordAuthentication.newInstance(
+                userName,
+                privateKey?.toCharArray(),
+                false,
+                svnURL,
+                false
+            )
         }
 
         val basicAuthenticationManager = TmatesoftBasicAuthenticationManager2(arrayOf(auth))
@@ -86,7 +93,7 @@ object SvnUtils {
 
     fun isSSHProtocol(protocol: String?): Boolean {
         if (protocol == "http" ||
-            protocol == "https"
+            protocol == "https" || protocol == "svn"
         ) {
             return false
         }
@@ -113,21 +120,22 @@ object SvnUtils {
     }
 
     fun getSvnProjectName(svnUrl: String): String {
-        val urlSplitArray = svnUrl.split("tencent.com/")
+        val urlSplitArray = svnUrl.split("//")
         if (urlSplitArray.size < 2) {
             throw ScmException("Invalid svn url($svnUrl)", ScmType.CODE_SVN.name)
         }
-
+        // urlSplitArray[0] -> 协议  urlSplitArray[1] -> repo路径
         val path = urlSplitArray[1]
         val pathArray = path.split("/")
         if (pathArray.size < 2) {
             throw ScmException("Invalid svn url($svnUrl)", ScmType.CODE_SVN.name)
         }
-
-        return if (pathArray.size >= 3 && pathArray[2].endsWith("_proj")) {
-            "${pathArray[0]}/${pathArray[1]}/${pathArray[2]}"
+        // pathArray[0] -> 域名
+        return if (pathArray.size >= 4 && pathArray[3].endsWith("_proj")) {
+            // 兼容旧工蜂svn
+            "${pathArray[1]}/${pathArray[2]}/${pathArray[3]}"
         } else {
-            "${pathArray[0]}/${pathArray[1]}"
+            "${pathArray[1]}/${pathArray[2]}"
         }
     }
 
@@ -157,5 +165,23 @@ object SvnUtils {
         }
 
         return url.substring(builder.toString().length)
+    }
+
+    /**
+     * 得到svn文件路径
+     *
+     * svn的url中可能已经包含部分文件路径，需要把文件路径中相同的部分去掉
+     */
+    fun getSvnFilePath(url: String, filePath: String): String {
+        val filePathArr = filePath.removePrefix("/").split("/")
+        if (filePathArr.isEmpty()) {
+            return filePath
+        }
+        val start = StringUtils.lastIndexOf(url, filePathArr[0])
+        return if (start > 0) {
+            filePath.removePrefix("/").removePrefix(StringUtils.substring(url, start))
+        } else {
+            filePath.removePrefix("/")
+        }
     }
 }

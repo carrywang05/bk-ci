@@ -37,6 +37,7 @@ interface Window {
     JSONP: Function
     GLOBAL_PID: string
     BK_CI_VERSION: string
+    PUBLIC_URL_PREFIX: string
     getLoginUrl: Function
     attachEvent(event: string, listener: EventListener): boolean
     detachEvent(event: string, listener: EventListener): void
@@ -64,6 +65,20 @@ interface Permission {
 
 declare module '*.vue' {
     import Vue from 'vue'
+    export default Vue
+}
+
+declare module '*.ts' {
+    import Vue from 'vue'
+    import VueI18n from 'vue-i18n'
+    interface Vue {
+        readonly $i18n: VueI18n & IVueI18n;
+        $t: typeof VueI18n.prototype.t;
+        $tc: typeof VueI18n.prototype.tc;
+        $te: typeof VueI18n.prototype.te;
+        $d: typeof VueI18n.prototype.d;
+        $n: typeof VueI18n.prototype.n;
+    }
     export default Vue
 }
 

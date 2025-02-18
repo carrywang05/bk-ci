@@ -72,7 +72,8 @@ class CommitDao {
                     COMMITTER,
                     COMMIT_TIME,
                     COMMENT,
-                    ELEMENT_ID
+                    ELEMENT_ID,
+                    URL
                 )
                     .values(
                         it.buildId,
@@ -87,7 +88,8 @@ class CommitDao {
                             ZoneId.systemDefault()
                         ),
                         it.comment,
-                        it.elementId
+                        it.elementId,
+                        it.url
                     )
             }
             return dslContext.batch(query).execute()
@@ -126,6 +128,20 @@ class CommitDao {
                 .where(PIPELINE_ID.eq(pipelineId).and(ELEMENT_ID.eq(elementId)).and(REPO_NAME.eq(repoName)))
                 .orderBy(COMMIT_TIME.desc())
                 .limit(sqlLimit.offset, sqlLimit.limit)
+                .fetch()
+        }
+    }
+
+    fun list(
+        dslContext: DSLContext,
+        buildId: String,
+        pipelineId: String,
+        elementId: String
+    ): Result<TRepositoryCommitRecord> {
+        with(TRepositoryCommit.T_REPOSITORY_COMMIT) {
+            return dslContext.selectFrom(this)
+                .where(PIPELINE_ID.eq(pipelineId).and(ELEMENT_ID.eq(elementId)).and(BUILD_ID.eq(buildId)))
+                .orderBy(COMMIT_TIME.desc())
                 .fetch()
         }
     }

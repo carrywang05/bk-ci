@@ -32,6 +32,7 @@ import com.tencent.devops.common.pipeline.enums.ChannelCode
 import com.tencent.devops.process.pojo.BuildHistory
 import com.tencent.devops.process.pojo.BuildTask
 import com.tencent.devops.process.pojo.BuildTaskResult
+import com.tencent.devops.process.pojo.BuildTemplateAcrossInfo
 import com.tencent.devops.process.pojo.BuildVariables
 import com.tencent.devops.process.pojo.pipeline.ModelDetail
 import com.tencent.devops.worker.common.api.WorkerRestApiSDK
@@ -46,7 +47,8 @@ interface BuildSDKApi : WorkerRestApiSDK {
         projectId: String,
         pipelineId: String,
         buildNum: String,
-        channelCode: ChannelCode?
+        channelCode: ChannelCode?,
+        buildId: String
     ): Result<BuildHistory?>
 
     fun getBuildDetail(
@@ -57,4 +59,8 @@ interface BuildSDKApi : WorkerRestApiSDK {
     ): Result<ModelDetail?>
 
     fun timeout(): Result<Boolean>
+
+    fun getBuildAcrossTemplateInfo(
+        templateId: String
+    ): Result<List<BuildTemplateAcrossInfo>>
 }

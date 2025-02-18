@@ -27,37 +27,35 @@
 
 package com.tencent.devops.log.service
 
-import com.tencent.devops.common.event.pojo.pipeline.PipelineBuildFinishBroadCastEvent
 import com.tencent.devops.common.log.pojo.EndPageQueryLogs
-import com.tencent.devops.common.log.pojo.LogBatchEvent
-import com.tencent.devops.common.log.pojo.LogEvent
-import com.tencent.devops.common.log.pojo.LogStatusEvent
 import com.tencent.devops.common.log.pojo.PageQueryLogs
 import com.tencent.devops.common.log.pojo.QueryLogs
-import org.slf4j.LoggerFactory
+import com.tencent.devops.common.log.pojo.enums.LogType
+import com.tencent.devops.log.event.LogOriginEvent
+import com.tencent.devops.log.event.LogStatusEvent
+import com.tencent.devops.log.event.LogStorageEvent
 import javax.ws.rs.core.Response
 
+@Suppress("LongParameterList", "TooManyFunctions")
 interface LogService {
 
-    companion object {
-        private val logger = LoggerFactory.getLogger(LogService::class.java)
-    }
+    fun addLogEvent(event: LogOriginEvent)
 
-    fun pipelineFinish(event: PipelineBuildFinishBroadCastEvent)
-
-    fun addLogEvent(event: LogEvent)
-
-    fun addBatchLogEvent(event: LogBatchEvent)
+    fun addBatchLogEvent(event: LogStorageEvent)
 
     fun updateLogStatus(event: LogStatusEvent)
 
     fun queryInitLogs(
         buildId: String,
         debug: Boolean,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
+        containerHashId: String?,
+        executeCount: Int?,
         jobId: String?,
-        executeCount: Int?
+        stepId: String?,
+        reverse: Boolean?
     ): QueryLogs
 
     fun queryLogsBetweenLines(
@@ -67,31 +65,40 @@ interface LogService {
         start: Long,
         end: Long,
         debug: Boolean,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
+        containerHashId: String?,
+        executeCount: Int?,
         jobId: String?,
-        executeCount: Int?
+        stepId: String?
     ): QueryLogs
 
     fun queryLogsAfterLine(
         buildId: String,
         start: Long,
         debug: Boolean,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
+        containerHashId: String?,
+        executeCount: Int?,
         jobId: String?,
-        executeCount: Int?
+        stepId: String?
     ): QueryLogs
 
     fun queryLogsBeforeLine(
         buildId: String,
         end: Long,
         debug: Boolean,
+        logType: LogType?,
         size: Int?,
         tag: String?,
         subTag: String?,
+        containerHashId: String?,
+        executeCount: Int?,
         jobId: String?,
-        executeCount: Int?
+        stepId: String?
     ): QueryLogs
 
     fun downloadLogs(
@@ -99,42 +106,53 @@ interface LogService {
         buildId: String,
         tag: String?,
         subTag: String?,
-        jobId: String?,
+        containerHashId: String?,
         executeCount: Int?,
-        fileName: String?
+        fileName: String?,
+        jobId: String?,
+        stepId: String?
     ): Response
 
     fun getEndLogsPage(
         pipelineId: String,
         buildId: String,
         debug: Boolean,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
-        jobId: String?,
+        containerHashId: String?,
         executeCount: Int?,
-        size: Int
+        size: Int,
+        jobId: String?,
+        stepId: String?
     ): EndPageQueryLogs
 
     fun getBottomLogs(
         pipelineId: String,
         buildId: String,
         debug: Boolean,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
-        jobId: String?,
+        containerHashId: String?,
         executeCount: Int?,
-        size: Int?
+        size: Int?,
+        jobId: String?,
+        stepId: String?
     ): QueryLogs
 
     fun queryInitLogsPage(
         buildId: String,
         debug: Boolean,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
-        jobId: String?,
+        containerHashId: String?,
         executeCount: Int?,
         page: Int,
-        pageSize: Int
+        pageSize: Int,
+        jobId: String?,
+        stepId: String?
     ): PageQueryLogs
 
     fun reopenIndex(buildId: String): Boolean

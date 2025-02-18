@@ -27,32 +27,39 @@
 
 package com.tencent.devops.common.webhook.service.code.matcher
 
-import com.nhaarman.mockito_kotlin.mock
 import com.tencent.devops.common.api.enums.RepositoryConfig
 import com.tencent.devops.common.api.enums.RepositoryType
 import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeGitWebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeEventType
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeType
+import com.tencent.devops.common.test.BkCiAbstractTest
 import com.tencent.devops.common.webhook.pojo.code.WebHookParams
+import com.tencent.devops.common.webhook.pojo.code.git.GitIssueEvent
 import com.tencent.devops.common.webhook.pojo.code.git.GitMergeRequestEvent
+import com.tencent.devops.common.webhook.pojo.code.git.GitNoteEvent
 import com.tencent.devops.common.webhook.pojo.code.git.GitPushEvent
 import com.tencent.devops.common.webhook.pojo.code.git.GitReviewEvent
 import com.tencent.devops.common.webhook.pojo.code.git.GitTagPushEvent
+import com.tencent.devops.common.webhook.service.code.EventCacheService
 import com.tencent.devops.common.webhook.service.code.GitScmService
+import com.tencent.devops.common.webhook.service.code.handler.tgit.TGitIssueTriggerHandler
 import com.tencent.devops.common.webhook.service.code.handler.tgit.TGitMrTriggerHandler
+import com.tencent.devops.common.webhook.service.code.handler.tgit.TGitNoteTriggerHandler
 import com.tencent.devops.common.webhook.service.code.handler.tgit.TGitPushTriggerHandler
 import com.tencent.devops.common.webhook.service.code.handler.tgit.TGitReviewTriggerHandler
 import com.tencent.devops.common.webhook.service.code.handler.tgit.TGitTagPushTriggerHandler
 import com.tencent.devops.common.webhook.service.code.loader.CodeWebhookHandlerRegistrar
 import com.tencent.devops.repository.pojo.CodeGitRepository
 import com.tencent.devops.repository.pojo.enums.RepoAuthType
-import org.junit.Assert
-import org.junit.Before
-import org.junit.Test
+import io.mockk.mockk
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.springframework.core.io.ClassPathResource
 import java.nio.charset.Charset
 
-class GitWebHookMatcherTest {
+class GitWebHookMatcherTest : BkCiAbstractTest() {
 
     private val repository = CodeGitRepository(
         aliasName = "mingshewhe/webhook_test3",
@@ -62,16 +69,39 @@ class GitWebHookMatcherTest {
         userName = "mingshewhe",
         authType = RepoAuthType.HTTP,
         projectId = "mht",
-        repoHashId = "eraf"
+        repoHashId = "eraf",
+        gitProjectId = 0L
     )
 
-    @Before
+    private val repositoryDyy = CodeGitRepository(
+        aliasName = "yongyiduan/webhook-test",
+        url = "https://git.code.tencent.com/yongyiduan/webhook-test.git",
+        credentialId = "",
+        projectName = "yongyiduan/webhook-test",
+        userName = "yongyiduan",
+        authType = RepoAuthType.HTTP,
+        projectId = "mht",
+        repoHashId = "eraf",
+        gitProjectId = 0L
+    )
+
+    @BeforeEach
     fun setUp() {
-        CodeWebhookHandlerRegistrar.register(TGitPushTriggerHandler())
+        val gitScmService: GitScmService = mockk()
+        val eventCacheService: EventCacheService = mockk()
+        CodeWebhookHandlerRegistrar.register(TGitPushTriggerHandler(eventCacheService, gitScmService))
         CodeWebhookHandlerRegistrar.register(TGitTagPushTriggerHandler())
-        val gitScmService: GitScmService = mock()
-        CodeWebhookHandlerRegistrar.register(TGitMrTriggerHandler(gitScmService))
-        CodeWebhookHandlerRegistrar.register(TGitReviewTriggerHandler(gitScmService))
+        CodeWebhookHandlerRegistrar.register(
+            TGitMrTriggerHandler(
+                gitScmService = gitScmService,
+                eventCacheService = eventCacheService
+            )
+        )
+        CodeWebhookHandlerRegistrar.register(
+            TGitReviewTriggerHandler(eventCacheService = eventCacheService)
+        )
+        CodeWebhookHandlerRegistrar.register(TGitIssueTriggerHandler(eventCacheService))
+        CodeWebhookHandlerRegistrar.register(TGitNoteTriggerHandler(eventCacheService))
     }
 
     @Test
@@ -94,8 +124,8 @@ class GitWebHookMatcherTest {
         )
         val matcher = GitWebHookMatcher(event = event)
 
-        Assert.assertTrue(matcher.preMatch().isMatch)
-        Assert.assertFalse(
+        Assertions.assertTrue(matcher.preMatch().isMatch)
+        Assertions.assertFalse(
             matcher.isMatch(
                 projectId = "mht",
                 pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
@@ -103,16 +133,16 @@ class GitWebHookMatcherTest {
                 webHookParams = webHookParams
             ).isMatch
         )
-        Assert.assertEquals("mingshewhe", matcher.getUsername())
-        Assert.assertEquals("9c9f8cc062060fdad67137e5e102689be765b4d4", matcher.getRevision())
-        Assert.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
-        Assert.assertEquals("mr_test", matcher.getBranchName())
-        Assert.assertEquals(CodeEventType.PUSH, matcher.getEventType())
-        Assert.assertEquals(CodeType.GIT, matcher.getCodeType())
-        Assert.assertEquals(null, matcher.getHookSourceUrl())
-        Assert.assertEquals(null, matcher.getHookTargetUrl())
-        Assert.assertEquals(null, matcher.getMergeRequestId())
-        Assert.assertEquals("mr 19", matcher.getMessage())
+        Assertions.assertEquals("mingshewhe", matcher.getUsername())
+        Assertions.assertEquals("9c9f8cc062060fdad67137e5e102689be765b4d4", matcher.getRevision())
+        Assertions.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
+        Assertions.assertEquals("mr_test", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.PUSH, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals("mr 19", matcher.getMessage())
     }
 
     @Test
@@ -135,8 +165,8 @@ class GitWebHookMatcherTest {
         )
         val matcher = GitWebHookMatcher(event = event)
 
-        Assert.assertTrue(matcher.preMatch().isMatch)
-        Assert.assertTrue(
+        Assertions.assertTrue(matcher.preMatch().isMatch)
+        Assertions.assertTrue(
             matcher.isMatch(
                 projectId = "mht",
                 pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
@@ -144,17 +174,17 @@ class GitWebHookMatcherTest {
                 webHookParams = webHookParams
             ).isMatch
         )
-        Assert.assertEquals("mingshewhe", matcher.getUsername())
-        Assert.assertEquals("87acd380f4a91ba1eb200a082ad60f394f3062a5", matcher.getRevision())
-        Assert.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
-        Assert.assertEquals("v1.0.1", matcher.getBranchName())
-        Assert.assertEquals(CodeEventType.TAG_PUSH, matcher.getEventType())
-        Assert.assertEquals(CodeType.GIT, matcher.getCodeType())
-        Assert.assertEquals(null, matcher.getHookSourceUrl())
-        Assert.assertEquals(null, matcher.getHookTargetUrl())
-        Assert.assertEquals(null, matcher.getMergeRequestId())
-        Assert.assertEquals(
-            "Merge branch 'mr_test' into 'master' (merge request !6)\n\nmr 6",
+        Assertions.assertEquals("mingshewhe", matcher.getUsername())
+        Assertions.assertEquals("87acd380f4a91ba1eb200a082ad60f394f3062a5", matcher.getRevision())
+        Assertions.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
+        Assertions.assertEquals("v1.0.1", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.TAG_PUSH, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals(
+            "v1.0.1",
             matcher.getMessage()
         )
     }
@@ -175,12 +205,17 @@ class GitWebHookMatcherTest {
                 repositoryName = null
             ),
             eventType = CodeEventType.MERGE_REQUEST,
-            branchName = "master"
+            branchName = "master",
+            includeMrAction = listOf(
+                CodeGitWebHookTriggerElement.MERGE_ACTION_OPEN,
+                CodeGitWebHookTriggerElement.MERGE_ACTION_REOPEN,
+                CodeGitWebHookTriggerElement.MERGE_ACTION_PUSH_UPDATE
+            ).joinToString(",")
         )
         val matcher = GitWebHookMatcher(event = event)
 
-        Assert.assertTrue(matcher.preMatch().isMatch)
-        Assert.assertTrue(
+        Assertions.assertTrue(matcher.preMatch().isMatch)
+        Assertions.assertTrue(
             matcher.isMatch(
                 projectId = "mht",
                 pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
@@ -188,22 +223,22 @@ class GitWebHookMatcherTest {
                 webHookParams = webHookParams
             ).isMatch
         )
-        Assert.assertEquals("mingshewhe", matcher.getUsername())
-        Assert.assertEquals("9c9f8cc062060fdad67137e5e102689be765b4d4", matcher.getRevision())
-        Assert.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
-        Assert.assertEquals("master", matcher.getBranchName())
-        Assert.assertEquals(CodeEventType.MERGE_REQUEST, matcher.getEventType())
-        Assert.assertEquals(CodeType.GIT, matcher.getCodeType())
-        Assert.assertEquals(
+        Assertions.assertEquals("mingshewhe", matcher.getUsername())
+        Assertions.assertEquals("9c9f8cc062060fdad67137e5e102689be765b4d4", matcher.getRevision())
+        Assertions.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
+        Assertions.assertEquals("master", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.MERGE_REQUEST, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(
             "https://git.code.tencent.com/mingshewhe/webhook_test3.git",
             matcher.getHookSourceUrl()
         )
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "https://git.code.tencent.com/mingshewhe/webhook_test3.git",
             matcher.getHookTargetUrl()
         )
-        Assert.assertEquals(290966L, matcher.getMergeRequestId())
-        Assert.assertEquals("mr 19", matcher.getMessage())
+        Assertions.assertEquals(290966L, matcher.getMergeRequestId())
+        Assertions.assertEquals("mr_test", matcher.getMessage())
     }
 
     @Test
@@ -226,8 +261,8 @@ class GitWebHookMatcherTest {
         )
         val matcher = GitWebHookMatcher(event = event)
 
-        Assert.assertTrue(matcher.preMatch().isMatch)
-        Assert.assertTrue(
+        Assertions.assertTrue(matcher.preMatch().isMatch)
+        Assertions.assertTrue(
             matcher.isMatch(
                 projectId = "mht",
                 pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
@@ -235,15 +270,173 @@ class GitWebHookMatcherTest {
                 webHookParams = webHookParams
             ).isMatch
         )
-        Assert.assertEquals("mingshewhe", matcher.getUsername())
-        Assert.assertEquals("", matcher.getRevision())
-        Assert.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
-        Assert.assertEquals("", matcher.getBranchName())
-        Assert.assertEquals(CodeEventType.REVIEW, matcher.getEventType())
-        Assert.assertEquals(CodeType.GIT, matcher.getCodeType())
-        Assert.assertEquals(null, matcher.getHookSourceUrl())
-        Assert.assertEquals(null, matcher.getHookTargetUrl())
-        Assert.assertEquals(null, matcher.getMergeRequestId())
-        Assert.assertEquals("", matcher.getMessage())
+        Assertions.assertEquals("mingshewhe", matcher.getUsername())
+        Assertions.assertEquals("", matcher.getRevision())
+        Assertions.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
+        Assertions.assertEquals("", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.REVIEW, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals("", matcher.getMessage())
+    }
+
+    @Test
+    fun gitIssueEventTrigger() {
+        val classPathResource = ClassPathResource(
+            "com/tencent/devops/common/webhook/service/code/tgit/TGitIssueEvent.json"
+        )
+        val event = JsonUtil.to(
+            json = classPathResource.inputStream.readBytes().toString(Charset.defaultCharset()),
+            type = GitIssueEvent::class.java
+        )
+        val webHookParams = WebHookParams(
+            repositoryConfig = RepositoryConfig(
+                repositoryHashId = "eraf",
+                repositoryType = RepositoryType.ID,
+                repositoryName = null
+            ),
+            eventType = CodeEventType.ISSUES,
+            includeIssueAction = "open"
+        )
+        val matcher = GitWebHookMatcher(event = event)
+
+        Assertions.assertTrue(
+            matcher.isMatch(
+                projectId = "mht",
+                pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
+                repository = repository,
+                webHookParams = webHookParams
+            ).isMatch
+        )
+        Assertions.assertEquals("mingshewhe", matcher.getUsername())
+        Assertions.assertEquals("", matcher.getRevision())
+        Assertions.assertEquals("mingshewhe/webhook_test3", matcher.getRepoName())
+        Assertions.assertEquals("", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.ISSUES, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals("issue创建", matcher.getMessage())
+    }
+
+    @Test
+    fun gitNoteIssueEventTrigger() {
+        val classPathResource = ClassPathResource(
+            "com/tencent/devops/common/webhook/service/code/tgit/TGitNoteIssueEvent.json"
+        )
+        val event = JsonUtil.to(
+            json = classPathResource.inputStream.readBytes().toString(Charset.defaultCharset()),
+            type = GitNoteEvent::class.java
+        )
+        val webHookParams = WebHookParams(
+            repositoryConfig = RepositoryConfig(
+                repositoryHashId = "eraf",
+                repositoryType = RepositoryType.ID,
+                repositoryName = null
+            ),
+            eventType = CodeEventType.NOTE,
+            includeNoteTypes = "Issue",
+            includeNoteComment = "^@Stream"
+        )
+        val matcher = GitWebHookMatcher(event = event)
+        Assertions.assertTrue(
+            matcher.isMatch(
+                projectId = "mht",
+                pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
+                repository = repositoryDyy,
+                webHookParams = webHookParams
+            ).isMatch
+        )
+        Assertions.assertEquals("yongyiduan", matcher.getUsername())
+        Assertions.assertEquals("", matcher.getRevision())
+        Assertions.assertEquals("yongyiduan/webhook-test", matcher.getRepoName())
+        Assertions.assertEquals("", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.NOTE, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals("@Stream issue test", matcher.getMessage())
+    }
+
+    @Test
+    fun gitNoteCommitEventTrigger() {
+        val classPathResource = ClassPathResource(
+            "com/tencent/devops/common/webhook/service/code/tgit/TGitNoteCommitEvent.json"
+        )
+        val event = JsonUtil.to(
+            json = classPathResource.inputStream.readBytes().toString(Charset.defaultCharset()),
+            type = GitNoteEvent::class.java
+        )
+        val webHookParams = WebHookParams(
+            repositoryConfig = RepositoryConfig(
+                repositoryHashId = "eraf",
+                repositoryType = RepositoryType.ID,
+                repositoryName = null
+            ),
+            eventType = CodeEventType.NOTE,
+            includeNoteTypes = "Commit"
+        )
+        val matcher = GitWebHookMatcher(event = event)
+        Assertions.assertTrue(
+            matcher.isMatch(
+                projectId = "mht",
+                pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
+                repository = repositoryDyy,
+                webHookParams = webHookParams
+            ).isMatch
+        )
+        Assertions.assertEquals("yongyiduan", matcher.getUsername())
+        Assertions.assertEquals("", matcher.getRevision())
+        Assertions.assertEquals("yongyiduan/webhook-test", matcher.getRepoName())
+        Assertions.assertEquals("", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.NOTE, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals("commit test", matcher.getMessage())
+    }
+
+    @Test
+    fun gitNoteMrEventTrigger() {
+        val classPathResource = ClassPathResource(
+            "com/tencent/devops/common/webhook/service/code/tgit/TGitNoteMrEvent.json"
+        )
+        val event = JsonUtil.to(
+            json = classPathResource.inputStream.readBytes().toString(Charset.defaultCharset()),
+            type = GitNoteEvent::class.java
+        )
+        val webHookParams = WebHookParams(
+            repositoryConfig = RepositoryConfig(
+                repositoryHashId = "eraf",
+                repositoryType = RepositoryType.ID,
+                repositoryName = null
+            ),
+            eventType = CodeEventType.NOTE,
+            includeNoteTypes = "Review"
+        )
+        val matcher = GitWebHookMatcher(event = event)
+        Assertions.assertTrue(
+            matcher.isMatch(
+                projectId = "mht",
+                pipelineId = "p-8a49b34bfd834adda6e8dbaad01eedea",
+                repository = repositoryDyy,
+                webHookParams = webHookParams
+            ).isMatch
+        )
+        Assertions.assertEquals("yongyiduan", matcher.getUsername())
+        Assertions.assertEquals("", matcher.getRevision())
+        Assertions.assertEquals("yongyiduan/webhook-test", matcher.getRepoName())
+        Assertions.assertEquals("", matcher.getBranchName())
+        Assertions.assertEquals(CodeEventType.NOTE, matcher.getEventType())
+        Assertions.assertEquals(CodeType.GIT, matcher.getCodeType())
+        Assertions.assertEquals(null, matcher.getHookSourceUrl())
+        Assertions.assertEquals(null, matcher.getHookTargetUrl())
+        Assertions.assertEquals(null, matcher.getMergeRequestId())
+        Assertions.assertEquals("mr test", matcher.getMessage())
     }
 }

@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory
 @Suppress("ALL")
 object EvalExpress {
     private val logger = LoggerFactory.getLogger(EvalExpress::class.java)
-    private val contextPrefix = listOf("variables.", "settings", "envs.", "ci.", "job.", "jobs.", "steps.")
+    private val contextPrefix = listOf("variables.", "settings", "envs.", "ci.", "job.", "jobs.", "steps.", "matrix.")
 
     fun eval(
         buildId: String,
@@ -51,8 +51,10 @@ object EvalExpress {
             originItems = Lex(baldExpress.toList().toMutableList()).getToken()
             GrammarAnalysis(originItems).analysis()
         } catch (e: Exception) {
-            logger.info("[$buildId]|STAGE_CONDITION|skip|CUSTOM_CONDITION_MATCH|expression=$baldExpress|" +
-                "reason=Grammar Invalid: ${e.message}")
+            logger.info(
+                "[$buildId]|STAGE_CONDITION|skip|CUSTOM_CONDITION_MATCH|expression=$baldExpress|" +
+                    "reason=Grammar Invalid: ${e.message}"
+            )
             throw ExpressionException("expression=$baldExpress|reason=Grammar Invalid: ${e.message}")
         }
 
@@ -71,8 +73,10 @@ object EvalExpress {
         try {
             GrammarAnalysis(items).analysis()
         } catch (e: Exception) {
-            logger.info("[$buildId]|STAGE_CONDITION|skip|CUSTOM_CONDITION_MATCH|expression=$itemsStr|" +
-                "reason=Grammar Invalid: ${e.message}")
+            logger.info(
+                "[$buildId]|STAGE_CONDITION|skip|CUSTOM_CONDITION_MATCH|expression=$itemsStr|" +
+                    "reason=Grammar Invalid: ${e.message}"
+            )
             throw ExpressionException("parsed expression=$itemsStr|reason=Grammar Invalid: ${e.message}")
         }
 
@@ -80,8 +84,10 @@ object EvalExpress {
         return try {
             SemanticAnalysis(items).analysis()
         } catch (e: Throwable) {
-            logger.info("[$buildId]|STAGE_CONDITION|skip|CUSTOM_CONDITION_MATCH|expression=$itemsStr|" +
-                "reason=Semantic analysis failed: ${e.message}")
+            logger.info(
+                "[$buildId]|STAGE_CONDITION|skip|CUSTOM_CONDITION_MATCH|expression=$itemsStr|" +
+                    "reason=Semantic analysis failed: ${e.message}"
+            )
             throw ExpressionException("Eval expression=$itemsStr|reason=Semantic analysis failed: ${e.message}")
         }
     }

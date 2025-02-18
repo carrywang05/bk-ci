@@ -1,98 +1,214 @@
 <template>
-    <article class="atom-manage-home" v-bkloading="{ isLoading }">
+    <article
+        class="atom-manage-home"
+        v-bkloading="{ isLoading }"
+    >
         <h3 class="atom-manage-title">
             {{ $t('atomManage.installedAtom') }}
             <span @click="goToStore">{{ $t('atomManage.moreAtom') }}</span>
         </h3>
-        <bk-tab :active.sync="active" class="atom-manage-main" @tab-change="tabChange">
-            <bk-tab-panel v-for="(panel, index) in panels" v-bind="panel" :key="index">
+        <bk-tab
+            :active.sync="active"
+            class="atom-manage-main"
+            @tab-change="tabChange"
+        >
+            <bk-tab-panel
+                v-for="(panel, index) in panels"
+                v-bind="panel"
+                :key="index"
+            >
                 <template slot="label">
-                    <span>{{panel.label}}</span>
-                    <i class="atom-panel-count">{{panel.count}}</i>
+                    <span>{{ panel.label }}</span>
                 </template>
-                <bk-table :data="atomList" size="large" :empty-text="$t('noData')" :show-header="false">
-                    <bk-table-column prop="logoUrl" width="80">
+                <bk-table
+                    v-bkloading="{ isLoading: tableLoading }"
+                    :data="atomList"
+                    size="large"
+                    :empty-text="$t('noData')"
+                    :show-header="false"
+                >
+                    <bk-table-column
+                        prop="logoUrl"
+                        width="80"
+                    >
                         <template slot-scope="props">
-                            <img class="atom-logo" :src="props.row.logoUrl" v-if="props.row.logoUrl">
-                            <logo class="atom-logo" v-else name="placeholder" size="38" style="fill:#C3CDD7" />
+                            <img
+                                class="atom-logo"
+                                :src="props.row.logoUrl"
+                                v-if="props.row.logoUrl"
+                            >
+                            <logo
+                                class="atom-logo"
+                                v-else
+                                name="placeholder"
+                                size="38"
+                                style="fill:#C3CDD7"
+                            />
                         </template>
                     </bk-table-column>
                     <bk-table-column class-name="atom-manage-des">
                         <template slot-scope="props">
-                            <h5 class="text-overflow" :title="props.row.name">{{ props.row.name }}</h5>
-                            <span class="text-overflow" :title="props.row.summary" v-if="props.row.summary">{{ props.row.summary }}</span>
+                            <h5
+                                class="text-overflow"
+                                :title="props.row.name"
+                            >
+                                {{ props.row.name }}
+                            </h5>
+                            <span
+                                class="text-overflow"
+                                :title="props.row.summary"
+                                v-if="props.row.summary"
+                            >{{ props.row.summary }}</span>
                         </template>
                     </bk-table-column>
-                    <bk-table-column prop="publisher" width="200"></bk-table-column>
+                    <bk-table-column
+                        prop="publisher"
+                        width="200"
+                    ></bk-table-column>
                     <bk-table-column width="400">
                         <template slot-scope="props">
-                            <span class="text-overflow" :title="getInstallInfo(props.row)">{{ getInstallInfo(props.row) }}</span>
+                            <span
+                                class="text-overflow"
+                                :title="getInstallInfo(props.row)"
+                            >{{ getInstallInfo(props.row) }}</span>
                         </template>
                     </bk-table-column>
-                    <bk-table-column class-name="primary-color" width="120">
+                    <bk-table-column
+                        class-name="primary-color"
+                        width="120"
+                    >
                         <template slot-scope="props">
-                            <bk-popover :content="$t('atomManage.relatedNumTips', [props.row.pipelineCnt])" placement="top">
-                                <span @click="showDetail(props.row)" class="cursor-pointer">{{ props.row.pipelineCnt }}</span>
+                            <bk-popover
+                                :content="$t('atomManage.relatedNumTips', [props.row.pipelineCnt])"
+                                placement="top"
+                            >
+                                <span
+                                    @click="showDetail(props.row)"
+                                    class="cursor-pointer"
+                                >{{ props.row.pipelineCnt }}</span>
                             </bk-popover>
                         </template>
                     </bk-table-column>
-                    <bk-table-column width="80" class-name="primary-color">
+                    <bk-table-column
+                        width="120"
+                        class-name="primary-color"
+                    >
                         <template slot-scope="props">
-                            <bk-button :title="!props.row.hasPermission ? $t('atomManage.installedAtom') : ''" :disabled="!props.row.hasPermission" class="cursor-pointer" theme="primary" text @click="showDeletaDialog(props.row)" v-if="!props.row.default">{{ $t('atomManage.uninstall') }}</bk-button>
+                            <bk-button
+                                :title="!props.row.hasPermission ? uninstallTipsMap(props.row.installType) : ''"
+                                :disabled="!props.row.hasPermission"
+                                class="cursor-pointer"
+                                theme="primary"
+                                text
+                                @click="showDeletaDialog(props.row)"
+                                v-if="!props.row.default"
+                            >
+                                {{ $t('atomManage.uninstall') }}
+                            </bk-button>
                         </template>
                     </bk-table-column>
                 </bk-table>
             </bk-tab-panel>
         </bk-tab>
 
-        <bk-pagination @change="pageChange"
+        <bk-pagination
+            @change="pageChange"
             @limit-change="limitChange"
             :current.sync="defaultPaging.current"
             :count.sync="defaultPaging.count"
             :limit="defaultPaging.limit"
-            class="atom-pagination">
+            class="atom-pagination"
+        >
         </bk-pagination>
 
-        <bk-dialog v-model="deleteObj.showDialog" :title="`${$t('atomManage.uninstall')}${deleteObj.detail.name}：`" :close-icon="false" :width="538" @confirm="deleteAtom" @cancel="clearReason">
+        <bk-dialog
+            v-model="deleteObj.showDialog"
+            :title="`${$t('atomManage.uninstall')}${deleteObj.detail.name}：`"
+            :close-icon="false"
+            :width="538"
+            @confirm="deleteAtom"
+            @cancel="clearReason"
+        >
             <span class="choose-reason-title">{{ $t('atomManage.uninstallReason') }}</span>
             <bk-checkbox-group v-model="deleteObj.reasonList">
-                <bk-checkbox :value="reason.id" v-for="reason in deleteReasons" :key="reason.id" class="delete-reasons">{{reason.content}}</bk-checkbox>
+                <bk-checkbox
+                    :value="reason.id"
+                    v-for="reason in deleteReasons"
+                    :key="reason.id"
+                    class="delete-reasons"
+                >
+                    {{ reason.content }}
+                </bk-checkbox>
             </bk-checkbox-group>
             <template v-if="showOtherReason">
                 <span class="other-reason">{{ $t('atomManage.otherReason') }}：</span>
-                <textarea class="reason-text" v-model="deleteObj.otherStr"></textarea>
+                <textarea
+                    class="reason-text"
+                    v-model="deleteObj.otherStr"
+                ></textarea>
             </template>
         </bk-dialog>
 
-        <bk-sideslider :is-show.sync="detailObj.showSlide" :title="detailObj.detail.name" :width="644" :quick-close="true">
-            <section slot="content" class="atom-slide">
+        <bk-sideslider
+            :is-show.sync="detailObj.showSlide"
+            :title="detailObj.detail.name"
+            :width="644"
+            :quick-close="true"
+        >
+            <section
+                slot="content"
+                class="atom-slide"
+            >
                 <hgroup class="slide-title">
                     <h5 class="slide-link">
                         <span>{{ $t('name') }}：</span>
-                        <span class="text-overflow link-width">{{detailObj.detail.name}}</span>
-                        <logo class="logo-link" name="loadout" size="14" style="fill:#3C96FF" @click.native="goToStoreDetail(detailObj.detail.atomCode)" />
+                        <span class="text-overflow link-width">{{ detailObj.detail.name }}</span>
+                        <logo
+                            class="logo-link"
+                            name="loadout"
+                            size="14"
+                            style="fill:#3C96FF"
+                            @click.native="goToStoreDetail(detailObj.detail.atomCode)"
+                        />
                     </h5>
-                    <h5><span>{{ $t('atomManage.publisher') }}：</span>{{detailObj.detail.publisher}}</h5>
-                    <h5><span>{{ $t('atomManage.installer') }}：</span>{{detailObj.detail.installer}}</h5>
-                    <h5><span>{{ $t('atomManage.installTime') }}：</span>{{detailObj.detail.installTime}}</h5>
-                    <h5 class="slide-summary"><span>{{ $t('atomManage.summary') }}：</span><span>{{detailObj.detail.summary}}</span></h5>
+                    <h5><span>{{ $t('atomManage.publisher') }}：</span>{{ detailObj.detail.publisher }}</h5>
+                    <h5><span>{{ $t('atomManage.installer') }}：</span>{{ detailObj.detail.installer }}</h5>
+                    <h5><span>{{ $t('atomManage.installTime') }}：</span>{{ detailObj.detail.installTime }}</h5>
+                    <h5 class="slide-summary"><span>{{ $t('atomManage.summary') }}：</span><span>{{ detailObj.detail.summary }}</span></h5>
                 </hgroup>
 
-                <h5 class="related-pipeline">{{ $t('atomManage.relatedPipeline') }}（{{detailObj.list && detailObj.list.length}}）</h5>
-                <bk-table :data="detailObj.list" empty-text="暂无关联流水线">
-                    <bk-table-column :label="$t('pipelineName')" prop="pipelineName" width="235">
+                <h5 class="related-pipeline">{{ $t('atomManage.relatedPipeline') }}（{{ detailObj.list && detailObj.list.length }}）</h5>
+                <bk-table
+                    :data="detailObj.list"
+                    :empty-text="$t('noReleatedPipeline')"
+                >
+                    <bk-table-column
+                        :label="$t('pipelineName')"
+                        prop="pipelineName"
+                        width="235"
+                    >
                         <template slot-scope="props">
                             <h3 class="slide-link">
-                                <span @click="goToPipeline(props.row.pipelineId)" class="link-text text-overflow" :title="props.row.pipelineName">{{ props.row.pipelineName }}</span>
+                                <span
+                                    @click="goToPipeline(props.row.pipelineId)"
+                                    class="link-text text-overflow"
+                                    :title="props.row.pipelineName"
+                                >{{ props.row.pipelineName }}</span>
                             </h3>
                         </template>
                     </bk-table-column>
-                    <bk-table-column :label="$t('lastExecUser')" width="180">
+                    <bk-table-column
+                        :label="$t('lastExecUser')"
+                        width="180"
+                    >
                         <template slot-scope="props">
                             <span>{{ props.row.owner || '-' }}</span>
                         </template>
                     </bk-table-column>
-                    <bk-table-column :label="$t('lastExecTime')" width="180">
+                    <bk-table-column
+                        :label="$t('lastExecTime')"
+                        width="180"
+                    >
                         <template slot-scope="props">
                             <span>{{ props.row.latestExecTime || '-' }}</span>
                         </template>
@@ -104,8 +220,8 @@
 </template>
 
 <script>
-    import { mapActions } from 'vuex'
     import Logo from '@/components/Logo'
+    import { mapActions } from 'vuex'
 
     export default {
         components: {
@@ -116,7 +232,7 @@
             return {
                 panels: [],
                 active: 'all',
-                installAtomList: [],
+                atomList: [],
                 deleteObj: {
                     showDialog: false,
                     detail: {},
@@ -130,6 +246,7 @@
                     list: []
                 },
                 isLoading: false,
+                tableLoading: false,
                 defaultPaging: {
                     current: 1,
                     count: 0,
@@ -141,14 +258,6 @@
         computed: {
             projectId () {
                 return this.$route.params.projectId
-            },
-
-            atomList () {
-                const curTabAtomList = this.installAtomList.filter((atom) => (this.active === 'all' || atom.classifyCode === this.active)) || []
-                this.defaultPaging.count = curTabAtomList.length
-                const startIndex = this.defaultPaging.limit * (this.defaultPaging.current - 1)
-                const endIndex = this.defaultPaging.limit * this.defaultPaging.current
-                return curTabAtomList.slice(startIndex, endIndex)
             },
 
             showOtherReason () {
@@ -166,23 +275,58 @@
         methods: {
             ...mapActions('atom', ['getInstallAtomList', 'getInstallAtomDetail', 'unInstallAtom', 'getDeleteReasons', 'getAtomClassify']),
 
-            initData () {
+            async initData () {
                 this.isLoading = true
-                Promise.all([this.getInstallAtomList(this.projectId), this.getAtomClassify(), this.getDeleteReasons()]).then(([{ data: atomList }, { data: classifyList }, { data: reasons }]) => {
-                    this.installAtomList = atomList.records || []
-                    this.deleteReasons = reasons || []
-                    this.panels = (classifyList || []).map((classify) => {
-                        const count = (this.installAtomList.filter((atom) => (atom.classifyCode === classify.classifyCode)) || []).length
-                        return { name: classify.classifyCode, label: classify.classifyName, count }
+                await this.fetchAtomList()
+                Promise.all([this.getAtomClassify(), this.getDeleteReasons()])
+                    .then(([{ data: classifyList }, { data: reasons }]) => {
+                        this.deleteReasons = reasons || []
+                        this.panels = (classifyList || []).map(item => {
+                            item.name = item.classifyCode
+                            item.label = item.classifyName
+                            return item
+                        })
+                        this.panels.unshift({ name: 'all', label: this.$t('atomManage.all') })
+                    }).catch(err => this.$bkMessage({ theme: 'error', message: err.message })).finally(() => {
+                        this.isLoading = false
                     })
-                    this.panels.unshift({ name: 'all', label: this.$t('atomManage.all'), count: this.installAtomList.length })
-                }).catch(err => this.$bkMessage({ theme: 'error', message: err.message })).finally(() => {
-                    this.isLoading = false
+            },
+
+            uninstallTipsMap (installType) {
+                let tips = ''
+                switch (installType) {
+                    case 'INIT':
+                        tips = this.$t('atomManage.initAtomTips')
+                        break
+                    case 'TEST':
+                        tips = this.$t('atomManage.testAtomTips')
+                        break
+                    case 'COMMON':
+                        tips = this.$t('atomManage.commonAtomTips')
+                        break
+                }
+                return tips
+            },
+
+            fetchAtomList () {
+                const classifyCode = this.active === 'all' ? '' : this.active
+                this.tableLoading = true
+                return this.getInstallAtomList({
+                    projectCode: this.projectId,
+                    page: this.defaultPaging.current,
+                    pageSize: this.defaultPaging.limit,
+                    classifyCode: classifyCode
+                }).then(res => {
+                    const data = res.data || {}
+                    this.atomList = data.records || []
+                    this.defaultPaging.count = data.count || 0
+                    this.tableLoading = false
                 })
             },
 
             tabChange () {
                 this.defaultPaging.current = 1
+                this.fetchAtomList()
             },
 
             showDetail (row) {
@@ -226,6 +370,7 @@
 
             pageChange (page) {
                 if (page) this.defaultPaging.current = page
+                this.fetchAtomList()
             },
 
             limitChange (limit) {
@@ -233,6 +378,7 @@
 
                 this.defaultPaging.limit = limit
                 this.defaultPaging.current = 1
+                this.fetchAtomList()
             },
 
             clearReason () {
@@ -243,6 +389,9 @@
             getInstallInfo (row) {
                 let des = this.$t('atomManage.installedAt')
                 if (row.default) des = this.$t('atomManage.createdAt')
+                if (row.installer === 'system') {
+                    return this.$t('atomManage.systemPlugin')
+                }
                 return `${row.installer} ${des} ${row.installTime}`
             },
 
@@ -306,10 +455,10 @@
                     background-color: white;
                 }
             }
-            /deep/ .bk-tab-label:hover .atom-panel-count {
+            ::v-deep .bk-tab-label:hover .atom-panel-count {
                 background: #3a84ff;
             }
-            /deep/ .atom-manage-des {
+            ::v-deep .atom-manage-des {
                 h5 {
                     margin-top: 0;
                     margin-bottom: 4px;
@@ -324,23 +473,23 @@
                     width: 100%;
                 }
             }
-            /deep/ div.bk-tab-section {
+            ::v-deep div.bk-tab-section {
                 padding: 0;
                 .bk-table-large .cell {
                     -webkit-line-clamp: 1;
                 }
             }
-            /deep/ .bk-table-body-wrapper {
+            ::v-deep .bk-table-body-wrapper {
                 max-height: calc(100vh - 250px);
                 overflow-y: auto;
                 .primary-color {
                     color: $primaryColor;
                 }
             }
-            /deep/ .bk-table-body-wrapper .cursor-pointer {
+            ::v-deep .bk-table-body-wrapper .cursor-pointer {
                 cursor: pointer;
             }
-            /deep/ thead tr th:first-child div {
+            ::v-deep thead tr th:first-child div {
                 margin-left: 10px;
             }
             .atom-logo {
@@ -369,7 +518,7 @@
                     line-height: 19px;
                     span:nth-child(1) {
                         display: inline-block;
-                        width: 70px;
+                        width: 90px;
                         text-align: right;
                         margin-right: 14px;
                         color: $fontWeightColor;
@@ -413,7 +562,7 @@
     .delete-reasons {
         display: block;
         padding: 6px 0;
-        /deep/ .bk-checkbox-text {
+        ::v-deep .bk-checkbox-text {
             font-size: 12px;
         }
     }
@@ -430,7 +579,7 @@
         line-height: 12px;
         font-size: 12px;
         border-radius: 2px;
-        border: 1px solid $fontLigtherColor;
+        border: 1px solid $fontLighterColor;
         resize: none;
     }
 

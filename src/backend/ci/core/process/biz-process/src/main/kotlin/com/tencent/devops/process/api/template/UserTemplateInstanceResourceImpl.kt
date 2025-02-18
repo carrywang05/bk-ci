@@ -27,9 +27,12 @@
 
 package com.tencent.devops.process.api.template
 
+import com.tencent.bk.audit.annotations.AuditEntry
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.auth.api.ActionId
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.process.pojo.PipelineId
+import com.tencent.devops.process.pojo.enums.TemplateSortTypeEnum
 import com.tencent.devops.process.pojo.template.TemplateCompareModelResult
 import com.tencent.devops.process.pojo.template.TemplateInstanceCreate
 import com.tencent.devops.process.pojo.template.TemplateInstancePage
@@ -45,6 +48,7 @@ class UserTemplateInstanceResourceImpl @Autowired constructor(
 ) :
     UserTemplateInstanceResource {
 
+    @AuditEntry(actionId = ActionId.PIPELINE_CREATE)
     override fun createTemplateInstances(
         userId: String,
         projectId: String,
@@ -63,6 +67,7 @@ class UserTemplateInstanceResourceImpl @Autowired constructor(
         )
     }
 
+    @AuditEntry(actionId = ActionId.PIPELINE_EDIT)
     override fun updateTemplate(
         userId: String,
         projectId: String,
@@ -105,18 +110,24 @@ class UserTemplateInstanceResourceImpl @Autowired constructor(
         userId: String,
         projectId: String,
         templateId: String,
-        page: Int?,
-        pageSize: Int?,
-        searchKey: String?
+        page: Int,
+        pageSize: Int,
+        searchKey: String?,
+        sortType: TemplateSortTypeEnum?,
+        desc: Boolean?
     ): Result<TemplateInstancePage> {
-        return Result(templateFacadeService.listTemplateInstancesInPage(
-            projectId = projectId,
-            userId = userId,
-            templateId = templateId,
-            page = page,
-            pageSize = pageSize,
-            searchKey = searchKey
-        ))
+        return Result(
+            templateFacadeService.listTemplateInstancesInPage(
+                projectId = projectId,
+                userId = userId,
+                templateId = templateId,
+                page = page,
+                pageSize = pageSize,
+                searchKey = searchKey,
+                sortType = sortType,
+                desc = desc
+            )
+        )
     }
 
     override fun listTemplateInstancesParams(
@@ -144,12 +155,14 @@ class UserTemplateInstanceResourceImpl @Autowired constructor(
         pipelineId: String,
         version: Long
     ): Result<TemplateCompareModelResult> {
-        return Result(templateFacadeService.compareTemplateInstances(
-            projectId = projectId,
-            userId = userId,
-            templateId = templateId,
-            pipelineId = pipelineId,
-            version = version
-        ))
+        return Result(
+            templateFacadeService.compareTemplateInstances(
+                projectId = projectId,
+                userId = userId,
+                templateId = templateId,
+                pipelineId = pipelineId,
+                version = version
+            )
+        )
     }
 }

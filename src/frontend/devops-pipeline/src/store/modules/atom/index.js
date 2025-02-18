@@ -18,17 +18,34 @@
  */
 
 import actions from './actions'
-import mutations from './mutations'
 import getters from './getters'
+import mutations from './mutations'
 
 export default {
     namespaced: true,
     state: {
         showAtomSelectorPopup: false,
+        showVariable: false,
         pipeline: null,
+        pipelineWithoutTrigger: null,
+        pipelineYaml: '',
+        pipelineSetting: null,
         template: null,
+        pipelineInfo: null,
         fetchingAtmoModal: false,
         fetchingContainer: false,
+        commendAtomCount: 0,
+        isCommendAtomPageOver: false,
+        isAtomPageOver: false,
+        atomList: [],
+        atomsOutputMap: {},
+        requestAtomData: {
+            recommendFlag: true,
+            keyword: '',
+            page: 1,
+            pageSize: 50
+        },
+        fetchingAtomMoreLoading: false,
         fetchingAtomList: false,
         atomCodeList: [],
         fetchingAtmoVersion: false,
@@ -45,20 +62,19 @@ export default {
         showPanelType: '',
         isShowCompleteLog: false,
         isStagePopupShow: false,
-        isAddParallelContainer: false,
+        isAddParallelStage: false,
         insertStageIndex: null,
         insertStageIsFinally: false,
-        buildParamsMap: {},
         execDetail: null,
+        hideSkipExecTask: false,
         globalEnvs: null,
-        executeStatus: false,
+        commonParams: [],
         saveStatus: false,
         stageTagList: [],
         defaultStageTags: [],
         showReviewDialog: false,
         reviewInfo: null,
         showStageReviewPanel: {},
-        importedPipelineJson: null,
         atomVersionChangedKeys: [],
         pipelineLimit: {
             stageLimit: 20,
@@ -66,7 +82,13 @@ export default {
             atomLimit: 50
         },
         pipelineCommonSetting: {},
-        editfromImport: false
+        editfromImport: false,
+        isPipelineEditing: false,
+        activePipelineVersion: null,
+        yamlHighlightBlockMap: {},
+        switchingVersion: false,
+        isElementModified: false,
+        isGetPluginHeadTab: false
     },
     mutations,
     actions,

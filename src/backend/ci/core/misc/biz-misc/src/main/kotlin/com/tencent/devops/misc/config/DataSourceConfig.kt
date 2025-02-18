@@ -41,33 +41,11 @@ import javax.sql.DataSource
  *
  * Powered By Tencent
  */
+@Suppress("LongParameterList")
 @Configuration
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 @EnableTransactionManagement
 class DataSourceConfig {
-
-    @Bean
-    fun processDataSource(
-        @Value("\${spring.datasource.process.url}")
-        datasourceUrl: String,
-        @Value("\${spring.datasource.process.username}")
-        datasourceUsername: String,
-        @Value("\${spring.datasource.process.password}")
-        datasourcePassword: String,
-        @Value("\${spring.datasource.process.initSql:#{null}}")
-        datasourceInitSql: String? = null,
-        @Value("\${spring.datasource.process.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
-    ): DataSource {
-        return hikariDataSource(
-            datasourcePoolName = "DBPool-Process",
-            datasourceUrl = datasourceUrl,
-            datasourceUsername = datasourceUsername,
-            datasourcePassword = datasourcePassword,
-            datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
-        )
-    }
 
     @Bean
     fun projectDataSource(
@@ -80,7 +58,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.project.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.project.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Project",
@@ -88,7 +66,7 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
         )
     }
 
@@ -103,7 +81,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.repository.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.repository.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Repository",
@@ -111,7 +89,7 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
         )
     }
 
@@ -126,7 +104,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.dispatch.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.dispatch.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Dispatch",
@@ -134,7 +112,7 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
         )
     }
 
@@ -149,7 +127,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.plugin.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.plugin.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Plugin",
@@ -157,7 +135,7 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
         )
     }
 
@@ -172,7 +150,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.quality.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.quality.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Quality",
@@ -180,7 +158,7 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
         )
     }
 
@@ -195,7 +173,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.artifactory.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.artifactory.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Artifactory",
@@ -203,7 +181,7 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
         )
     }
 
@@ -218,7 +196,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.environment.initSql:#{null}}")
         datasourceInitSql: String? = null,
         @Value("\${spring.datasource.environment.leakDetectionThreshold:#{0}}")
-        datasouceLeakDetectionThreshold: Long = 0
+        datasourceLeakDetectionThreshold: Long = 0
     ): DataSource {
         return hikariDataSource(
             datasourcePoolName = "DBPool-Environment",
@@ -226,7 +204,30 @@ class DataSourceConfig {
             datasourceUsername = datasourceUsername,
             datasourcePassword = datasourcePassword,
             datasourceInitSql = datasourceInitSql,
-            datasouceLeakDetectionThreshold = datasouceLeakDetectionThreshold
+            datasourceLeakDetectionThreshold = datasourceLeakDetectionThreshold
+        )
+    }
+
+    @Bean
+    fun imageDataSource(
+        @Value("\${spring.datasource.image.url}")
+        datasourceUrl: String,
+        @Value("\${spring.datasource.image.username}")
+        datasourceUsername: String,
+        @Value("\${spring.datasource.image.password}")
+        datasourcePassword: String,
+        @Value("\${spring.datasource.image.initSql:#{null}}")
+        datasourceInitSql: String? = null,
+        @Value("\${spring.datasource.image.leakDetectionThreshold:#{0}}")
+        datasouceLeakDetectionThreshold: Long = 0
+    ): DataSource {
+        return hikariDataSource(
+            datasourcePoolName = "DBPool-image",
+            datasourceUrl = datasourceUrl,
+            datasourceUsername = datasourceUsername,
+            datasourcePassword = datasourcePassword,
+            datasourceInitSql = datasourceInitSql,
+            datasourceLeakDetectionThreshold = datasouceLeakDetectionThreshold
         )
     }
 
@@ -236,7 +237,7 @@ class DataSourceConfig {
         datasourceUsername: String,
         datasourcePassword: String,
         datasourceInitSql: String?,
-        datasouceLeakDetectionThreshold: Long
+        datasourceLeakDetectionThreshold: Long
     ): HikariDataSource {
         return HikariDataSource().apply {
             poolName = datasourcePoolName
@@ -244,11 +245,11 @@ class DataSourceConfig {
             username = datasourceUsername
             password = datasourcePassword
             driverClassName = Driver::class.java.name
-            minimumIdle = 10
-            maximumPoolSize = 50
+            minimumIdle = 1
+            maximumPoolSize = 8
             idleTimeout = 60000
             connectionInitSql = datasourceInitSql
-            leakDetectionThreshold = datasouceLeakDetectionThreshold
+            leakDetectionThreshold = datasourceLeakDetectionThreshold
         }
     }
 }

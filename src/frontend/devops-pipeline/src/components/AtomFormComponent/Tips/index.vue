@@ -3,7 +3,10 @@
         <span class="tip-icon">
             <i class="devops-icon icon-info-circle-shape"></i>
         </span>
-        <span class="tip-message" v-html="tip"></span>
+        <span
+            class="tip-message"
+            v-html="tip"
+        ></span>
     </h3>
 </template>
 
@@ -68,7 +71,7 @@
 
             handleDeepValue (reg, str) {
                 return str.replace(reg, (str, key) => {
-                    const exisParamKey = this.paramValues.hasOwnProperty(key)
+                    const exisParamKey = Object.prototype.hasOwnProperty.call(this.paramValues, key)
                     const value = exisParamKey ? this.paramValues[key] : str
                     if (exisParamKey) this.list.push(key)
                     return value

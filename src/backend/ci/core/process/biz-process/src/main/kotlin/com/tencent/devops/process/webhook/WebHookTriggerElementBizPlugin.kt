@@ -27,22 +27,20 @@
 
 package com.tencent.devops.process.webhook
 
-import com.tencent.devops.common.api.constant.CommonMessageCode
-import com.tencent.devops.common.api.enums.RepositoryTypeNew
-import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.pipeline.container.Container
 import com.tencent.devops.common.pipeline.enums.ChannelCode
 import com.tencent.devops.common.pipeline.pojo.element.atom.BeforeDeleteParam
-import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeGitGenericWebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeGitWebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeGithubWebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeGitlabWebHookTriggerElement
+import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeP4WebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeSVNWebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.CodeTGitWebHookTriggerElement
 import com.tencent.devops.common.pipeline.pojo.element.trigger.WebHookTriggerElement
 import com.tencent.devops.process.engine.service.PipelineWebhookService
 import com.tencent.devops.process.plugin.ElementBizPlugin
 import com.tencent.devops.process.plugin.annotation.ElementBiz
+import com.tencent.devops.process.pojo.pipeline.PipelineYamlVo
 
 abstract class WebHookTriggerElementBizPlugin<T : WebHookTriggerElement> constructor(
     private val pipelineWebhookService: PipelineWebhookService
@@ -55,12 +53,14 @@ abstract class WebHookTriggerElementBizPlugin<T : WebHookTriggerElement> constru
         userId: String,
         channelCode: ChannelCode,
         create: Boolean,
-        container: Container
+        container: Container,
+        yamlInfo: PipelineYamlVo?
     ) = Unit
 
     override fun beforeDelete(element: T, param: BeforeDeleteParam) {
         if (param.pipelineId.isNotBlank()) {
             pipelineWebhookService.deleteWebhook(
+                projectId = param.projectId,
                 pipelineId = param.pipelineId,
                 taskId = element.id!!,
                 userId = param.userId
@@ -119,37 +119,11 @@ class CodeTGitWebHookTriggerElementBizPlugin constructor(
 }
 
 @ElementBiz
-class CodeGitGenericWebHookTriggerElementBizPlugin constructor(
+class CodeP4WebHookTriggerElementBizPlugin constructor(
     pipelineWebhookService: PipelineWebhookService
-) : WebHookTriggerElementBizPlugin<CodeGitGenericWebHookTriggerElement>(pipelineWebhookService) {
-    override fun elementClass(): Class<CodeGitGenericWebHookTriggerElement> {
-        return CodeGitGenericWebHookTriggerElement::class.java
-    }
+) : WebHookTriggerElementBizPlugin<CodeP4WebHookTriggerElement>(pipelineWebhookService) {
 
-    override fun check(element: CodeGitGenericWebHookTriggerElement, appearedCnt: Int) {
-        with(element.data.input) {
-            if (repositoryType == RepositoryTypeNew.URL &&
-                credentialId.isNullOrBlank() &&
-                token.isNullOrBlank()
-            ) {
-                throw ErrorCodeException(defaultMessage = "凭证不能为空", errorCode = CommonMessageCode.PARAMETER_IS_NULL)
-            }
-        }
-    }
-
-    override fun afterCreate(
-        element: CodeGitGenericWebHookTriggerElement,
-        projectId: String,
-        pipelineId: String,
-        pipelineName: String,
-        userId: String,
-        channelCode: ChannelCode,
-        create: Boolean,
-        container: Container
-    ) {
-        // 只支持codecc才能自定义hookUrl
-        if (channelCode != ChannelCode.CODECC && !element.data.input.hookUrl.isNullOrBlank()) {
-            element.data.input.hookUrl = null
-        }
+    override fun elementClass(): Class<CodeP4WebHookTriggerElement> {
+        return CodeP4WebHookTriggerElement::class.java
     }
 }

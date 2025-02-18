@@ -33,9 +33,13 @@ import com.tencent.devops.common.pipeline.pojo.element.atom.BeforeDeleteParam
 import com.tencent.devops.common.pipeline.pojo.element.market.MarketBuildLessAtomElement
 import com.tencent.devops.process.plugin.ElementBizPlugin
 import com.tencent.devops.process.plugin.annotation.ElementBiz
+import com.tencent.devops.process.pojo.pipeline.PipelineYamlVo
+import org.springframework.beans.factory.annotation.Autowired
 
 @ElementBiz
-class MarketBuildLessAtomElementBizPlugin : ElementBizPlugin<MarketBuildLessAtomElement> {
+class MarketBuildLessAtomElementBizPlugin @Autowired constructor(
+    private val elementBizPluginServices: List<IElementBizPluginService>
+) : ElementBizPlugin<MarketBuildLessAtomElement> {
 
     override fun elementClass(): Class<MarketBuildLessAtomElement> {
         return MarketBuildLessAtomElement::class.java
@@ -49,12 +53,17 @@ class MarketBuildLessAtomElementBizPlugin : ElementBizPlugin<MarketBuildLessAtom
         userId: String,
         channelCode: ChannelCode,
         create: Boolean,
-        container: Container
+        container: Container,
+        yamlInfo: PipelineYamlVo?
     ) = Unit
 
+    @Suppress("UNCHECKED_CAST")
     override fun beforeDelete(element: MarketBuildLessAtomElement, param: BeforeDeleteParam) {
         val inputMap = element.data["input"] as Map<String, Any>
         MarketBuildUtils.beforeDelete(inputMap, element.getAtomCode(), element.version, param)
+        elementBizPluginServices.find {
+            it.supportElement(element)
+        }?.beforeDelete(element = element, param = param)
     }
 
     override fun check(element: MarketBuildLessAtomElement, appearedCnt: Int) = Unit

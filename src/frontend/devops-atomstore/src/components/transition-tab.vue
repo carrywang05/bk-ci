@@ -1,16 +1,31 @@
 <template>
-    <bk-tab :active="activeTab" type="unborder-card" class="transition-tabs" @tab-change="tabChange">
+    <bk-tab
+        :active="activeTab"
+        type="unborder-card"
+        class="transition-tabs"
+        @tab-change="tabChange"
+    >
         <template slot="setting">
             <slot name="tool"></slot>
         </template>
-        <bk-tab-panel v-for="(panel, index) in panels" v-bind="panel" :key="index">
+        <bk-tab-panel
+            v-for="(panel, index) in panels"
+            v-bind="panel"
+            :key="index"
+        >
             <transition name="atom-fade">
-                <ul v-if="activeTab === panel.name && panel.showChildTab" class="transition-child-tabs">
-                    <li v-for="childPanel in panel.children.filter(x => !x.hidden)"
+                <ul
+                    v-if="activeTab === panel.name && panel.showChildTab"
+                    class="transition-child-tabs"
+                >
+                    <li
+                        v-for="childPanel in panel.children.filter(x => !x.hidden)"
                         :key="childPanel.name"
                         @click="childTabChange(childPanel.name)"
                         :class="['transition-child-tab', { active: activeChildTab === childPanel.name }]"
-                    >{{ childPanel.label }}</li>
+                    >
+                        {{ childPanel.label }}
+                    </li>
                 </ul>
             </transition>
             <slot></slot>
@@ -96,7 +111,7 @@
                 }
             }
         }
-        /deep/ .bk-tab-header {
+        ::v-deep .bk-tab-header {
             background-color: #fff;
             height: 6.4vh !important;
             line-height: 6.4vh !important;
@@ -126,7 +141,7 @@
                 line-height: 6.4vh !important;
             }
         }
-        /deep/ .bk-tab-section {
+        ::v-deep .bk-tab-section {
             padding: 0;
         }
     }

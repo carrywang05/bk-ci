@@ -29,12 +29,16 @@ package com.tencent.devops.quality.dao.v2
 
 import com.tencent.devops.common.api.util.HashUtil
 import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.quality.pojo.enums.RuleInterceptResult
 import com.tencent.devops.model.quality.tables.TQualityRuleBuildHis
 import com.tencent.devops.model.quality.tables.records.TQualityRuleBuildHisRecord
+import com.tencent.devops.quality.api.v2.pojo.QualityRule
 import com.tencent.devops.quality.api.v2.pojo.request.RuleCreateRequest
 import com.tencent.devops.quality.api.v3.pojo.request.RuleCreateRequestV3
 import org.jooq.DSLContext
+import org.jooq.Record1
 import org.jooq.Result
+import org.jooq.impl.DSL
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
@@ -52,50 +56,77 @@ class QualityRuleBuildHisDao @Autowired constructor(
         ruleRequest: RuleCreateRequestV3,
         indicatorIds: List<RuleCreateRequest.CreateRequestIndicator>
     ): Long {
-        return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
-            dslContext.insertInto(
-                this,
-                PROJECT_ID,
-                PIPELINE_ID,
-                RULE_POS,
-                RULE_NAME,
-                RULE_DESC,
-                GATEWAY_ID,
-                PIPELINE_RANGE,
-                TEMPLATE_RANGE,
-                INDICATOR_IDS,
-                INDICATOR_OPERATIONS,
-                INDICATOR_THRESHOLDS,
-                OPERATION_LIST,
-                CREATE_TIME,
-                CREATE_USER,
-                GATE_KEEPERS,
-                STAGE_ID
-            ).values(
-                projectId,
-                pipelineId,
-                ruleRequest.position,
-                ruleRequest.name,
-                ruleRequest.desc,
-                ruleRequest.gatewayId,
-                ruleRequest.range?.joinToString(",") ?: "",
-                ruleRequest.templateRange?.joinToString(",") ?: "",
-                indicatorIds.map { HashUtil.decodeIdToLong(it.hashId) }.joinToString(","),
-                indicatorIds.joinToString(",") { it.operation },
-                indicatorIds.joinToString(",") { it.threshold },
-                JsonUtil.toJson(ruleRequest.opList ?: listOf<RuleCreateRequestV3.CreateRequestOp>()),
-                LocalDateTime.now(),
-                userId,
-                ruleRequest.gateKeepers?.joinToString(",") ?: "",
-                ruleRequest.stageId
-            ).returning(ID).fetchOne()!!.id
+        var hisId = 0L
+        with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            dslContext.transaction { configuration ->
+                val transactionContext = DSL.using(configuration)
+                hisId = transactionContext.insertInto(
+                    this,
+                    PROJECT_ID,
+                    PIPELINE_ID,
+                    RULE_POS,
+                    RULE_NAME,
+                    RULE_DESC,
+                    GATEWAY_ID,
+                    PIPELINE_RANGE,
+                    TEMPLATE_RANGE,
+                    INDICATOR_IDS,
+                    INDICATOR_OPERATIONS,
+                    INDICATOR_THRESHOLDS,
+                    OPERATION_LIST,
+                    CREATE_TIME,
+                    CREATE_USER,
+                    GATE_KEEPERS,
+                    STAGE_ID,
+                    TASK_STEPS
+                ).values(
+                    projectId,
+                    pipelineId,
+                    ruleRequest.position,
+                    ruleRequest.name,
+                    ruleRequest.desc,
+                    ruleRequest.gatewayId,
+                    ruleRequest.range?.joinToString(",") ?: "",
+                    ruleRequest.templateRange?.joinToString(",") ?: "",
+                    indicatorIds.map { HashUtil.decodeIdToLong(it.hashId) }.joinToString(","),
+                    indicatorIds.joinToString(",") { it.operation },
+                    indicatorIds.joinToString(",") { it.threshold },
+                    JsonUtil.toJson(ruleRequest.opList ?: listOf<RuleCreateRequestV3.CreateRequestOp>()),
+                    LocalDateTime.now(),
+                    userId,
+                    ruleRequest.gateKeepers?.joinToString(",") ?: "",
+                    ruleRequest.stageId,
+                    JsonUtil.toJson(ruleRequest.taskSteps ?: listOf<QualityRule.RuleTask>())
+                ).returning(ID).fetchOne()!!.id
+                val hashId = HashUtil.encodeLongId(hisId)
+                transactionContext.update(this)
+                    .set(QUALITY_RULE_HIS_HASH_ID, hashId)
+                    .where(ID.eq(hisId))
+                    .execute()
+            }
         }
+        return hisId
     }
 
     fun list(dslContext: DSLContext, ruleIds: Collection<Long>): Result<TQualityRuleBuildHisRecord> {
         return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
             dslContext.selectFrom(this)
                 .where(ID.`in`(ruleIds))
+                .fetch()
+        }
+    }
+
+    fun listBuildHisRules(
+        dslContext: DSLContext,
+        projectId: String,
+        pipelineId: String,
+        ruleBuildId: String
+    ): Result<TQualityRuleBuildHisRecord> {
+        return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            dslContext.selectFrom(this)
+                .where(PROJECT_ID.eq(projectId))
+                .and(PIPELINE_ID.eq(pipelineId))
+                .and(BUILD_ID.eq(ruleBuildId))
                 .fetch()
         }
     }
@@ -109,7 +140,7 @@ class QualityRuleBuildHisDao @Autowired constructor(
         }
     }
 
-    fun updateBuildId(ruleBuildIds: Collection<Long>, buildId: String): Int {
+    fun updateBuildId(ruleBuildIds: Collection<Long>, buildId: String?): Int {
         return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
             innerDslContext.update(this)
                 .set(BUILD_ID, buildId)
@@ -118,11 +149,20 @@ class QualityRuleBuildHisDao @Autowired constructor(
         }
     }
 
-    fun updateStatus(ruleBuildId: Long, ruleResult: String): Int {
+    fun updateStatus(ruleBuildId: Long, ruleResult: String?): Int {
         return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
             innerDslContext.update(this)
                 .set(STATUS, ruleResult)
                 .where(ID.eq(ruleBuildId))
+                .execute()
+        }
+    }
+
+    fun batchUpdateStatus(ruleBuildIds: Collection<Long>, ruleResult: String?): Int {
+        return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            innerDslContext.update(this)
+                .set(STATUS, ruleResult)
+                .where(ID.`in`(ruleBuildIds))
                 .execute()
         }
     }
@@ -140,6 +180,51 @@ class QualityRuleBuildHisDao @Autowired constructor(
             innerDslContext.update(this)
                 .set(GATE_KEEPERS, gateKeepers)
                 .where(ID.eq(ruleBuildId))
+                .execute()
+        }
+    }
+
+    fun updateIndicatorThreshold(ruleBuildId: Long, indicatorThreshold: String): Int {
+        return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            innerDslContext.update(this)
+                .set(INDICATOR_THRESHOLDS, indicatorThreshold)
+                .where(ID.eq(ruleBuildId))
+                .execute()
+        }
+    }
+
+    fun updateTimeoutRuleStatus(ruleBuildIds: Collection<Long>): Int {
+        return with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            innerDslContext.update(this)
+                .set(STATUS, RuleInterceptResult.INTERCEPT.name)
+                .where(ID.`in`(ruleBuildIds))
+                .execute()
+        }
+    }
+
+    fun getAllRuleBuildHis(
+        dslContext: DSLContext,
+        limit: Int,
+        offset: Int
+    ): Result<Record1<Long>>? {
+        with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            return dslContext.select(ID).from(this)
+                .orderBy(CREATE_TIME.desc())
+                .limit(limit).offset(offset)
+                .fetch()
+        }
+    }
+
+    fun updateHashId(
+        dslContext: DSLContext,
+        id: Long,
+        hashId: String
+    ) {
+        with(TQualityRuleBuildHis.T_QUALITY_RULE_BUILD_HIS) {
+            dslContext.update(this)
+                .set(QUALITY_RULE_HIS_HASH_ID, hashId)
+                .where(ID.eq(id))
+                .and(QUALITY_RULE_HIS_HASH_ID.isNull)
                 .execute()
         }
     }

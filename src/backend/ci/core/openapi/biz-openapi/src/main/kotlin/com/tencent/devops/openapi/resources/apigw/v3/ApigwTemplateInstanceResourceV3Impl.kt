@@ -30,7 +30,9 @@ import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.openapi.api.apigw.v3.ApigwTemplateInstanceResourceV3
+import com.tencent.devops.openapi.utils.ApigwParamUtil
 import com.tencent.devops.process.api.template.ServiceTemplateInstanceResource
+import com.tencent.devops.process.pojo.enums.TemplateSortTypeEnum
 import com.tencent.devops.process.pojo.template.TemplateInstanceCreate
 import com.tencent.devops.process.pojo.template.TemplateInstancePage
 import com.tencent.devops.process.pojo.template.TemplateInstanceUpdate
@@ -41,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired
 @RestResource
 class ApigwTemplateInstanceResourceV3Impl @Autowired constructor(private val client: Client) :
     ApigwTemplateInstanceResourceV3 {
+
     override fun createTemplateInstances(
         appCode: String?,
         apigwType: String?,
@@ -51,7 +54,10 @@ class ApigwTemplateInstanceResourceV3Impl @Autowired constructor(private val cli
         useTemplateSettings: Boolean,
         instances: List<TemplateInstanceCreate>
     ): TemplateOperationRet {
-        logger.info("createTemplateInstances|userId=$userId|projectId=$projectId|templateId=$templateId|ver=$version")
+        logger.info(
+            "OPENAPI_TEMPLATE_INSTANCE_V3|$userId|create template instances|$projectId|$templateId|$version" +
+                "|$useTemplateSettings|$instances"
+        )
         return client.get(ServiceTemplateInstanceResource::class).createTemplateInstances(
             userId = userId,
             projectId = projectId,
@@ -72,7 +78,10 @@ class ApigwTemplateInstanceResourceV3Impl @Autowired constructor(private val cli
         useTemplateSettings: Boolean,
         instances: List<TemplateInstanceUpdate>
     ): TemplateOperationRet {
-        logger.info("updateTemplateInstances|userId=$userId|projectId=$projectId|templateId=$templateId|ver=$version")
+        logger.info(
+            "OPENAPI_TEMPLATE_INSTANCE_V3|$userId|update template instances|$projectId|$templateId|$version" +
+                "|$useTemplateSettings|$instances"
+        )
         return client.get(ServiceTemplateInstanceResource::class).updateTemplate(
             userId = userId,
             projectId = projectId,
@@ -91,17 +100,23 @@ class ApigwTemplateInstanceResourceV3Impl @Autowired constructor(private val cli
         templateId: String,
         page: Int?,
         pageSize: Int?,
-        searchKey: String?
+        searchKey: String?,
+        sortType: TemplateSortTypeEnum?,
+        desc: Boolean?
     ): Result<TemplateInstancePage> {
-        logger.info("listTemplateInstances|userId=$userId|projectId=$projectId|templateId=$templateId|" +
-            "page=$page|pageSize=$pageSize|searchKey=$searchKey")
+        logger.info(
+            "OPENAPI_TEMPLATE_INSTANCE_V3|$userId|list template instances|$projectId|$templateId|$page" +
+                "|$pageSize|$searchKey|$sortType|$desc"
+        )
         return client.get(ServiceTemplateInstanceResource::class).listTemplate(
             userId = userId,
             projectId = projectId,
             templateId = templateId,
-            page = page,
-            pageSize = pageSize,
-            searchKey = searchKey
+            page = page ?: 1,
+            pageSize = ApigwParamUtil.standardSize(pageSize) ?: 20,
+            searchKey = searchKey,
+            sortType = sortType,
+            desc = desc
         )
     }
 

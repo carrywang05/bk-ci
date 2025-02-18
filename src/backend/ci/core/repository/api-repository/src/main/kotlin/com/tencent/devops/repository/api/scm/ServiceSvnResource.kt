@@ -29,9 +29,10 @@ package com.tencent.devops.repository.api.scm
 
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.scm.pojo.SvnFileInfo
-import io.swagger.annotations.Api
-import io.swagger.annotations.ApiOperation
-import io.swagger.annotations.ApiParam
+import com.tencent.devops.scm.pojo.SvnRevisionInfo
+import io.swagger.v3.oas.annotations.tags.Tag
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import javax.ws.rs.Consumes
 import javax.ws.rs.GET
 import javax.ws.rs.Path
@@ -39,67 +40,91 @@ import javax.ws.rs.Produces
 import javax.ws.rs.QueryParam
 import javax.ws.rs.core.MediaType
 
-@Api(tags = ["SERVICE_SCM_SVN"], description = "Service Code SVN resource")
+@Tag(name = "SERVICE_SCM_SVN", description = "Service Code SVN resource")
 @Path("/service/scm/svn/")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Suppress("ALL")
 interface ServiceSvnResource {
 
-    @ApiOperation("获取文件内容")
+    @Operation(summary = "获取文件内容")
     @GET
     @Path("/getFileContent")
     fun getFileContent(
-        @ApiParam(value = "仓库url")
+        @Parameter(description = "仓库url")
         @QueryParam("url")
         url: String,
-        @ApiParam(value = "用户id")
+        @Parameter(description = "用户id")
         @QueryParam("userId")
         userId: String,
-        @ApiParam(value = "仓库类型")
+        @Parameter(description = "仓库类型")
         @QueryParam("type")
         svnType: String,
-        @ApiParam(value = "文件路径")
+        @Parameter(description = "文件路径")
         @QueryParam("filePath")
         filePath: String,
-        @ApiParam(value = "svn版本号")
+        @Parameter(description = "svn版本号")
         @QueryParam("reversion")
         reversion: Long,
-        @ApiParam(value = "私钥或用户名")
+        @Parameter(description = "私钥或用户名")
         @QueryParam("credential1")
         credential1: String,
-        @ApiParam(value = "密码")
+        @Parameter(description = "密码")
         @QueryParam("credential2")
         credential2: String? = null
     ): Result<String>
 
-    @ApiOperation("获取目录文件列表")
+    @Operation(summary = "获取目录文件列表")
     @GET
     @Path("/getDir")
     fun getDirectories(
-        @ApiParam(value = "仓库url")
+        @Parameter(description = "仓库url")
         @QueryParam("url")
         url: String,
-        @ApiParam(value = "用户id")
+        @Parameter(description = "用户id")
         @QueryParam("userId")
         userId: String,
-        @ApiParam(value = "仓库类型")
+        @Parameter(description = "仓库类型")
         @QueryParam("type")
         svnType: String,
-        @ApiParam(value = "相对路径")
+        @Parameter(description = "相对路径")
         @QueryParam("svnPath")
         svnPath: String?,
-        @ApiParam(value = "revision")
+        @Parameter(description = "revision")
         @QueryParam("revision")
         revision: Long,
-        @ApiParam(value = "用户名")
+        @Parameter(description = "用户名")
         @QueryParam("credential1")
         credential1: String,
-        @ApiParam(value = "密码或私钥")
+        @Parameter(description = "密码或私钥")
         @QueryParam("credential2")
         credential2: String,
-        @ApiParam(value = "私钥密码")
+        @Parameter(description = "私钥密码")
         @QueryParam("credential3")
         credential3: String?
     ): Result<List<SvnFileInfo>>
+
+    @Operation(summary = "获取svn仓库的提交信息列表")
+    @GET
+    @Path("/getSvnRevisionList")
+    fun getSvnRevisionList(
+        @Parameter(description = "仓库地址")
+        @QueryParam("url")
+        url: String,
+        @Parameter(description = "仓库用户")
+        @QueryParam("username")
+        username: String,
+        @Parameter(description = "私钥")
+        @QueryParam("privateKey")
+        privateKey: String,
+        @Parameter(description = "passphrase")
+        @QueryParam("passPhrase")
+        passPhrase: String?,
+        @Parameter(description = "branchName")
+        @QueryParam("branchName")
+        branchName: String?,
+        @Parameter(description = "当前版本")
+        @QueryParam("currentVersion")
+        currentVersion: String?
+    ): Result<Pair<Long, List<SvnRevisionInfo>>>
 }

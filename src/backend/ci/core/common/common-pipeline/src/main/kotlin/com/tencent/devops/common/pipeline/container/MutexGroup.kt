@@ -27,23 +27,43 @@
 
 package com.tencent.devops.common.pipeline.container
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 /**
  *  互斥组
  */
+@Schema(title = "互斥组模型")
 data class MutexGroup(
+    @get:Schema(title = "是否启用", required = false)
     val enable: Boolean,
+    @get:Schema(title = "互斥组名称", required = false)
     val mutexGroupName: String? = "",
+    @get:Schema(title = "是否排队", required = false)
     val queueEnable: Boolean,
-    val timeout: Int = 0,
-    val queue: Int = 0
+    @get:Schema(title = "排队等待时间（分钟）0表示不等待直接失败", required = false)
+    var timeout: Int = 0,
+    @get:Schema(title = "支持变量解析的timeout，变量值非数字则会改取timeout值", required = false)
+    var timeoutVar: String? = null,
+    @get:Schema(title = "排队队列大小", required = false)
+    val queue: Int = 0,
+    @get:Schema(title = "运行时实际互斥锁名称（有值则已初始化）", required = false)
+    var runtimeMutexGroup: String? = null,
+    @get:Schema(title = "占用锁定的信息用于日志提示", required = false)
+    var linkTip: String? = null // #5454 占用锁定的信息用于日志提示/不写入到Model，仅在构建开始时产生
 ) {
+    fun fetchRuntimeMutexGroup() = runtimeMutexGroup ?: mutexGroupName ?: ""
+
     fun genMutexLockKey(projectId: String): String {
-        val mutexGroupName = mutexGroupName ?: ""
+        val mutexGroupName = fetchRuntimeMutexGroup()
         return "lock:container:mutex:$projectId:$mutexGroupName:lock"
     }
 
     fun genMutexQueueKey(projectId: String): String {
-        val mutexGroupName = mutexGroupName ?: ""
+        val mutexGroupName = fetchRuntimeMutexGroup()
         return "lock:container:mutex:$projectId:$mutexGroupName:queue"
+    }
+
+    fun genMutexLinkTipKey(containerMutexId: String): String {
+        return "linkTip:$containerMutexId"
     }
 }

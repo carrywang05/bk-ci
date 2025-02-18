@@ -27,18 +27,17 @@
 
 package com.tencent.devops.process.init
 
-import com.tencent.devops.common.event.dispatcher.pipeline.mq.MQ
-import com.tencent.devops.common.event.dispatcher.pipeline.mq.Tools
+import com.tencent.devops.common.event.annotation.EventConsumer
+import com.tencent.devops.common.event.pojo.pipeline.PipelineBuildStatusBroadCastEvent
+import com.tencent.devops.common.stream.ScsConsumerBuilder
+import com.tencent.devops.process.engine.listener.pipeline.MQPipelineStreamEnabledListener
 import com.tencent.devops.process.engine.listener.run.callback.PipelineBuildCallBackListener
-import org.springframework.amqp.core.Binding
-import org.springframework.amqp.core.BindingBuilder
-import org.springframework.amqp.core.FanoutExchange
-import org.springframework.amqp.core.Queue
-import org.springframework.amqp.rabbit.connection.ConnectionFactory
-import org.springframework.amqp.rabbit.core.RabbitAdmin
-import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter
+import com.tencent.devops.process.engine.pojo.event.PipelineStreamEnabledEvent
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+import java.time.Duration
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -46,50 +45,40 @@ import org.springframework.context.annotation.Configuration
  * 流水线回调扩展配置
  */
 @Configuration
+@EnableConfigurationProperties(CallbackCircuitBreakerProperties::class)
 class PipelineCallBackConfiguration {
+    /**
+     * 构建构建回调广播交换机
+     */
+    @EventConsumer
+    fun pipelineBuildCallBackConsumer(
+        @Autowired buildListener: PipelineBuildCallBackListener
+    ) = ScsConsumerBuilder.build<PipelineBuildStatusBroadCastEvent> { buildListener.run(it) }
 
     /**
      * 构建构建回调广播交换机
      */
-    @Bean
-    fun pipelineBuildStatusCallbackFanoutExchange(): FanoutExchange {
-        val fanoutExchange = FanoutExchange(MQ.EXCHANGE_PIPELINE_BUILD_CALL_BACK_FANOUT, true, false)
-        fanoutExchange.isDelayed = true
-        return fanoutExchange
-    }
+    @EventConsumer
+    fun pipelineStreamEnabledConsumer(
+        @Autowired streamEnabledListener: MQPipelineStreamEnabledListener
+    ) = ScsConsumerBuilder.build<PipelineStreamEnabledEvent> { streamEnabledListener.run(it) }
 
     @Bean
-    fun pipelineBuildStatusChangeQueue(): Queue {
-        return Queue(MQ.QUEUE_PIPELINE_BUILD_STATUS_CHANGE)
-    }
-
-    @Bean
-    fun pipelineBuildStatusChangeQueueBind(
-        @Autowired pipelineBuildStatusChangeQueue: Queue,
-        @Autowired pipelineBuildStatusCallbackFanoutExchange: FanoutExchange
-    ): Binding {
-        return BindingBuilder.bind(pipelineBuildStatusChangeQueue).to(pipelineBuildStatusCallbackFanoutExchange)
-    }
-
-    @Bean
-    fun pipelineBuildCallBackListenerContainer(
-        @Autowired connectionFactory: ConnectionFactory,
-        @Autowired pipelineBuildStatusChangeQueue: Queue,
-        @Autowired rabbitAdmin: RabbitAdmin,
-        @Autowired buildListener: PipelineBuildCallBackListener,
-        @Autowired messageConverter: Jackson2JsonMessageConverter
-    ): SimpleMessageListenerContainer {
-
-        return Tools.createSimpleMessageListenerContainer(
-            connectionFactory = connectionFactory,
-            queue = pipelineBuildStatusChangeQueue,
-            rabbitAdmin = rabbitAdmin,
-            buildListener = buildListener,
-            messageConverter = messageConverter,
-            startConsumerMinInterval = 10000,
-            consecutiveActiveTrigger = 5,
-            concurrency = 1,
-            maxConcurrency = 50
-        )
+    fun callbackCircuitBreakerRegistry(
+        callbackCircuitBreakerProperties: CallbackCircuitBreakerProperties
+    ): CircuitBreakerRegistry {
+        val builder = CircuitBreakerConfig.custom()
+        builder.enableAutomaticTransitionFromOpenToHalfOpen()
+        builder.writableStackTraceEnabled(false)
+        with(callbackCircuitBreakerProperties) {
+            failureRateThreshold?.let { builder.failureRateThreshold(it) }
+            slowCallRateThreshold?.let { builder.slowCallRateThreshold(it) }
+            slowCallDurationThreshold?.let { builder.slowCallDurationThreshold(Duration.ofSeconds(it)) }
+            waitDurationInOpenState?.let { builder.waitDurationInOpenState(Duration.ofSeconds(it)) }
+            permittedNumberOfCallsInHalfOpenState?.let { builder.permittedNumberOfCallsInHalfOpenState(it) }
+            slidingWindow?.let { builder.slidingWindowSize(it) }
+            minimumNumberOfCalls?.let { builder.minimumNumberOfCalls(it) }
+        }
+        return CircuitBreakerRegistry.of(builder.build())
     }
 }

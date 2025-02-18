@@ -3,6 +3,7 @@
         :width="size"
         :height="size"
         style="fill: currentColor"
+        :viewBox="viewBox"
     >
         <use v-bind="{ 'xlink:href': `#color-logo-${name}` }" />
     </svg>
@@ -16,7 +17,16 @@
     export default class SvgLogo extends Vue {
         @Prop()
         name
+
         @Prop({ default: 32 })
         size
+
+        get viewBox () {
+            try {
+                return document.getElementById(`color-logo-${this.name}`).getAttribute('viewBox')
+            } catch (error) {
+                return ''
+            }
+        }
     }
 </script>

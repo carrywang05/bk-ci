@@ -32,9 +32,11 @@ import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.repository.api.ServiceGithubResource
 import com.tencent.devops.repository.pojo.GithubCheckRuns
 import com.tencent.devops.repository.pojo.GithubCheckRunsResponse
+import com.tencent.devops.repository.pojo.github.GithubAppUrl
 import com.tencent.devops.repository.pojo.github.GithubBranch
 import com.tencent.devops.repository.pojo.github.GithubTag
 import com.tencent.devops.repository.pojo.github.GithubToken
+import com.tencent.devops.repository.pojo.oauth.GithubTokenType
 import com.tencent.devops.repository.service.github.GithubOAuthService
 import com.tencent.devops.repository.service.github.GithubTokenService
 import com.tencent.devops.repository.service.github.IGithubService
@@ -50,21 +52,22 @@ class ServiceGithubResourceImpl @Autowired constructor(
         userId: String,
         accessToken: String,
         tokenType: String,
-        scope: String
+        scope: String,
+        operator: String?
     ): Result<Boolean> {
-        githubTokenService.createAccessToken(userId, accessToken, tokenType, scope)
+        githubTokenService.createAccessToken(userId, accessToken, tokenType, scope, operator = operator ?: userId)
         return Result(true)
     }
 
-    override fun getAccessToken(userId: String): Result<GithubToken?> {
-        return Result(githubTokenService.getAccessToken(userId))
+    override fun getAccessToken(userId: String, tokenType: GithubTokenType?): Result<GithubToken?> {
+        return Result(githubTokenService.getAccessToken(userId, tokenType ?: GithubTokenType.GITHUB_APP))
     }
 
     override fun getFileContent(projectName: String, ref: String, filePath: String): Result<String> {
         return Result(githubService.getFileContent(projectName, ref, filePath))
     }
 
-    override fun getGithubAppUrl(): Result<String> {
+    override fun getGithubAppUrl(): Result<GithubAppUrl> {
         return Result(githubOAuthService.getGithubAppUrl())
     }
 
@@ -92,5 +95,13 @@ class ServiceGithubResourceImpl @Autowired constructor(
 
     override fun getGithubTag(accessToken: String, projectName: String, tag: String): Result<GithubTag?> {
         return Result(githubService.getTag(accessToken, projectName, tag))
+    }
+
+    override fun listBranches(accessToken: String, projectName: String): Result<List<String>> {
+        return Result(githubService.listBranches(accessToken, projectName))
+    }
+
+    override fun listTags(accessToken: String, projectName: String): Result<List<String>> {
+        return Result(githubService.listTags(accessToken, projectName))
     }
 }

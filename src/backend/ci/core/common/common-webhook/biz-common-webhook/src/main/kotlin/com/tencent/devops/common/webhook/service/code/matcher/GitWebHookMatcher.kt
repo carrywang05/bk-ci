@@ -30,9 +30,11 @@ package com.tencent.devops.common.webhook.service.code.matcher
 import com.tencent.devops.common.pipeline.pojo.element.trigger.enums.CodeType
 import com.tencent.devops.common.webhook.pojo.code.WebHookParams
 import com.tencent.devops.common.webhook.pojo.code.git.GitEvent
+import com.tencent.devops.common.webhook.service.code.pojo.WebhookMatchResult
 import com.tencent.devops.repository.pojo.CodeGitRepository
 import com.tencent.devops.repository.pojo.CodeTGitRepository
 import com.tencent.devops.repository.pojo.Repository
+import com.tencent.devops.scm.pojo.WebhookCommit
 import org.slf4j.LoggerFactory
 
 @Suppress("ALL")
@@ -48,12 +50,12 @@ open class GitWebHookMatcher(
         pipelineId: String,
         repository: Repository,
         webHookParams: WebHookParams
-    ): ScmWebhookMatcher.MatchResult {
+    ): WebhookMatchResult {
         if (repository !is CodeGitRepository &&
             repository !is CodeTGitRepository
         ) {
             logger.warn("$pipelineId|Is not code repo for git web hook for repo and pipeline: $repository")
-            return ScmWebhookMatcher.MatchResult(isMatch = false)
+            return WebhookMatchResult(isMatch = false)
         }
         return eventHandler.isMatch(
             event = event,
@@ -65,4 +67,20 @@ open class GitWebHookMatcher(
     }
 
     override fun getCodeType() = CodeType.GIT
+
+    override fun getWebhookCommitList(
+        projectId: String,
+        pipelineId: String,
+        repository: Repository,
+        page: Int,
+        size: Int
+    ): List<WebhookCommit> {
+        return eventHandler.getWebhookCommitList(
+            event = event,
+            projectId = projectId,
+            repository = repository,
+            page = page,
+            size = size
+        )
+    }
 }

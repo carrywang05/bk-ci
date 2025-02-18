@@ -31,6 +31,7 @@ import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.log.pojo.EndPageQueryLogs
 import com.tencent.devops.common.log.pojo.PageQueryLogs
 import com.tencent.devops.common.log.pojo.QueryLogs
+import com.tencent.devops.common.log.pojo.enums.LogType
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.log.api.AppLogResource
 import com.tencent.devops.log.service.BuildLogQueryService
@@ -56,6 +57,7 @@ class AppLogResourceImpl @Autowired constructor(
         pipelineId: String,
         buildId: String,
         debug: Boolean?,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
         jobId: String?,
@@ -69,12 +71,15 @@ class AppLogResourceImpl @Autowired constructor(
             pipelineId = pipelineId,
             buildId = buildId,
             debug = debug,
+            logType = logType,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
+            containerHashId = jobId,
             executeCount = executeCount,
             page = page,
-            pageSize = pageSize
+            pageSize = pageSize,
+            jobId = null,
+            stepId = null
         )
     }
 
@@ -84,13 +89,14 @@ class AppLogResourceImpl @Autowired constructor(
         pipelineId: String,
         buildId: String,
         debug: Boolean?,
+        logType: LogType?,
         num: Int?,
         fromStart: Boolean?,
         start: Long,
         end: Long,
         tag: String?,
         subTag: String?,
-        jobId: String?,
+        containerHashId: String?,
         executeCount: Int?
     ): Result<QueryLogs> {
         return buildLogQueryService.getMoreLogs(
@@ -99,14 +105,17 @@ class AppLogResourceImpl @Autowired constructor(
             pipelineId = pipelineId,
             buildId = buildId,
             debug = debug,
+            logType = logType,
             num = num ?: defaultNum,
             fromStart = fromStart,
             start = start,
             end = end,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = containerHashId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null
         )
     }
 
@@ -117,6 +126,7 @@ class AppLogResourceImpl @Autowired constructor(
         buildId: String,
         start: Long,
         debug: Boolean?,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
         jobId: String?,
@@ -129,10 +139,13 @@ class AppLogResourceImpl @Autowired constructor(
             buildId = buildId,
             start = start,
             debug = debug,
+            logType = logType,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null
         )
     }
 
@@ -143,6 +156,7 @@ class AppLogResourceImpl @Autowired constructor(
         buildId: String,
         end: Long,
         debug: Boolean?,
+        logType: LogType?,
         size: Int?,
         tag: String?,
         subTag: String?,
@@ -156,11 +170,14 @@ class AppLogResourceImpl @Autowired constructor(
             buildId = buildId,
             end = end,
             debug = debug,
+            logType = logType,
             size = size,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null
         )
     }
 
@@ -181,9 +198,11 @@ class AppLogResourceImpl @Autowired constructor(
             buildId = buildId,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
+            containerHashId = jobId,
             executeCount = executeCount,
-            fileName = null
+            fileName = null,
+            jobId = null,
+            stepId = null
         )
     }
 
@@ -194,6 +213,7 @@ class AppLogResourceImpl @Autowired constructor(
         buildId: String,
         size: Int,
         debug: Boolean?,
+        logType: LogType?,
         tag: String?,
         subTag: String?,
         jobId: String?,
@@ -206,10 +226,13 @@ class AppLogResourceImpl @Autowired constructor(
             buildId = buildId,
             size = size,
             debug = debug,
+            logType = logType,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null
         )
     }
 
@@ -219,6 +242,7 @@ class AppLogResourceImpl @Autowired constructor(
         pipelineId: String,
         buildId: String,
         debug: Boolean?,
+        logType: LogType?,
         size: Int?,
         tag: String?,
         subTag: String?,
@@ -231,11 +255,14 @@ class AppLogResourceImpl @Autowired constructor(
             pipelineId = pipelineId,
             buildId = buildId,
             debug = debug,
+            logType = logType,
             size = size,
             tag = tag,
             subTag = subTag,
-            jobId = jobId,
-            executeCount = executeCount
+            containerHashId = jobId,
+            executeCount = executeCount,
+            jobId = null,
+            stepId = null
         )
     }
 }

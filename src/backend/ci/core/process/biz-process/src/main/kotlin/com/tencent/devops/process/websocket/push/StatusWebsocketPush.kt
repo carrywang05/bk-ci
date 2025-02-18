@@ -29,21 +29,21 @@ package com.tencent.devops.process.websocket.push
 
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.event.annotation.Event
-import com.tencent.devops.common.event.dispatcher.pipeline.mq.MQ
 import com.tencent.devops.common.redis.RedisOperation
 import com.tencent.devops.common.service.utils.SpringContextUtil
+import com.tencent.devops.common.stream.constants.StreamBinding
 import com.tencent.devops.common.websocket.dispatch.message.PipelineMessage
 import com.tencent.devops.common.websocket.dispatch.message.SendMessage
 import com.tencent.devops.common.websocket.dispatch.push.WebsocketPush
 import com.tencent.devops.common.websocket.pojo.NotifyPost
 import com.tencent.devops.common.websocket.pojo.WebSocketType
 import com.tencent.devops.common.websocket.utils.PageUtils
-import com.tencent.devops.common.websocket.utils.RedisUtlis
+import com.tencent.devops.common.websocket.utils.WsRedisUtils
 import com.tencent.devops.process.pojo.PipelineStatus
 import com.tencent.devops.process.service.pipeline.PipelineStatusService
 import org.slf4j.LoggerFactory
 
-@Event(exchange = MQ.EXCHANGE_WEBSOCKET_TMP_FANOUT, routeKey = MQ.ROUTE_WEBSOCKET_TMP_EVENT)
+@Event(destination = StreamBinding.WEBSOCKET_TMP_FANOUT)
 data class StatusWebsocketPush(
     val buildId: String?,
     val pipelineId: String,
@@ -62,19 +62,21 @@ data class StatusWebsocketPush(
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(StatusWebsocketPush::class.java)
-        private val pipelineStatusService = SpringContextUtil.getBean(PipelineStatusService::class.java)
+        private val pipelineStatusService by lazy {
+            SpringContextUtil.getBean(PipelineStatusService::class.java)
+        }
     }
 
-    override fun findSession(page: String): List<String>? {
+    override fun findSession(page: String): Set<String> {
         if (page.isBlank()) {
             logger.warn("page empty: buildId[$buildId],projectId:[$projectId],pipelineId:[$pipelineId],page:[$page]")
         }
 
         val pageList = PageUtils.createAllTagPage(page)
 
-        val sessionList = mutableListOf<String>()
+        val sessionList = mutableSetOf<String>()
         pageList.forEach {
-            val redisSession = RedisUtlis.getSessionListFormPageSessionByPage(redisOperation, it)
+            val redisSession = WsRedisUtils.getSessionListFormPageSessionByPage(redisOperation, it)
             if (redisSession != null) {
                 sessionList.addAll(redisSession)
             }

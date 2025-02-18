@@ -32,13 +32,10 @@ import com.tencent.devops.common.api.pojo.ErrorType
 import com.tencent.devops.common.api.util.EnvUtils
 import com.tencent.devops.common.api.util.timestampmilli
 import com.tencent.devops.common.event.enums.ActionType
-import com.tencent.devops.common.pipeline.container.NormalContainer
-import com.tencent.devops.common.pipeline.container.VMBuildContainer
 import com.tencent.devops.common.pipeline.enums.BuildStatus
-import com.tencent.devops.common.pipeline.pojo.element.Element
 import com.tencent.devops.common.pipeline.pojo.element.RunCondition
-import com.tencent.devops.common.pipeline.type.docker.DockerDispatchType
 import com.tencent.devops.process.engine.common.Timeout
+import com.tencent.devops.process.engine.common.VMUtils
 import com.tencent.devops.process.engine.pojo.PipelineBuildTask
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
@@ -51,7 +48,7 @@ import java.util.concurrent.TimeUnit
 interface IAtomTask<T> {
 
     companion object {
-        val logger = LoggerFactory.getLogger(this::class.java)!!
+        val logger = LoggerFactory.getLogger(IAtomTask::class.java)!!
     }
 
     /**
@@ -101,30 +98,12 @@ interface IAtomTask<T> {
         // 未结束？检查是否超时
         if (!atomResponse.buildStatus.isFinish()) {
             val startTime = task.startTime?.timestampmilli() ?: 0L
-            val timeoutMills: Long =
-                if (param is Element) {
-                    val additionalOptions = param.additionalOptions
-                    var timeoutMinutes = additionalOptions?.timeout ?: Timeout.DEFAULT_TIMEOUT_MIN.toLong()
-                    if (timeoutMinutes == 0L) {
-                        timeoutMinutes = Timeout.MAX_MINUTES.toLong()
-                    }
-                    TimeUnit.MINUTES.toMillis(timeoutMinutes)
-                } else if (param is NormalContainer) {
-                    TimeUnit.MINUTES.toMillis(
-                        (param.jobControlOption?.prepareTimeout ?: Timeout.DEFAULT_PREPARE_MINUTES).toLong()
-                    )
-                } else if (param is VMBuildContainer) {
-                    // docker 构建机要求10分钟内超时
-                    if (param.dispatchType is DockerDispatchType || !param.dockerBuildVersion.isNullOrBlank()) {
-                        TimeUnit.MINUTES.toMillis(
-                            (param.jobControlOption?.prepareTimeout ?: Timeout.DEFAULT_PREPARE_MINUTES).toLong()
-                        )
-                    } else {
-                        TimeUnit.MINUTES.toMillis((param.jobControlOption?.timeout ?: Timeout.MAX_MINUTES).toLong())
-                    }
-                } else {
-                    0L
-                }
+            var timeout = task.additionalOptions?.timeout?.toInt()
+            if (timeout == null && VMUtils.isVMTask(task.taskId)) {
+                // 如果timeout为空且task为开关机插件任务，则给timeout赋默认值
+                timeout = Timeout.DEFAULT_PREPARE_MINUTES
+            }
+            val timeoutMills = Timeout.transMinuteTimeoutToMills(timeout)
             val runCondition = task.additionalOptions?.runCondition
             if (timeoutMills > 0 && System.currentTimeMillis() - startTime >= timeoutMills) {
                 logger.info(
@@ -206,7 +185,7 @@ interface IAtomTask<T> {
         if (value.isNullOrBlank()) {
             return ""
         }
-        return EnvUtils.parseEnv(value!!, runVariables)
+        return EnvUtils.parseEnv(value, runVariables)
     }
 }
 

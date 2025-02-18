@@ -2,8 +2,18 @@
     <div class="sub-build-params">
         <ul v-bkloading="{ isLoading: isLoading }">
             <template v-if="paramList.length">
-                <li class="param-item" v-for="param in paramList" :key="param.id">
-                    <div><vuex-input :disabled="true" name="key" :value="param.id" /></div>
+                <li
+                    class="param-item"
+                    v-for="param in paramList"
+                    :key="param.id"
+                >
+                    <div>
+                        <vuex-input
+                            :disabled="true"
+                            name="key"
+                            :value="param.id"
+                        />
+                    </div>
                     <span>=</span>
                     <div>
                         <select-input
@@ -17,7 +27,12 @@
                     </div>
                 </li>
             </template>
-            <li v-else class="param-item-empty"><span>{{ $t('editPage.paramEmptyTips') }}</span></li>
+            <li
+                v-else
+                class="param-item-empty"
+            >
+                <span>{{ $t('editPage.paramEmptyTips') }}</span>
+            </li>
         </ul>
     </div>
 </template>
@@ -91,10 +106,14 @@
         methods: {
             dataInputConfig (param) {
                 return {
-                    options: param.type === 'BOOLEAN' ? booleanList : param.type === 'ENUM' ? param.options.map(item => ({
-                        id: item.key,
-                        name: item.key
-                    })) : [],
+                    options: param.type === 'BOOLEAN'
+                        ? booleanList
+                        : param.type === 'ENUM'
+                            ? param.options.map(item => ({
+                                id: item.key,
+                                name: item.key
+                            }))
+                            : [],
                     handleChange: this.handleParamChange
                 }
             },
@@ -121,6 +140,7 @@
                 if (pipelineId) {
                     try {
                         const changeUrl = this.urlParse(url, {
+                            bkPoolType: this?.container?.dispatchType?.buildType,
                             pipelineId,
                             projectId
                         })
@@ -169,7 +189,7 @@
         }
         .param-item-empty {
             text-align: center;
-            color: $fontLigtherColor;
+            color: $fontLighterColor;
         }
     }
 </style>

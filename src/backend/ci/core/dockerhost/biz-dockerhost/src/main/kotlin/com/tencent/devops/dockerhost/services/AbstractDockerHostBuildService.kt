@@ -32,12 +32,7 @@ import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.exception.NotModifiedException
 import com.github.dockerjava.api.exception.UnauthorizedException
-import com.github.dockerjava.api.model.Driver
-import com.github.dockerjava.api.model.HostConfig
-import com.github.dockerjava.api.model.Mount
-import com.github.dockerjava.api.model.MountType
 import com.github.dockerjava.api.model.PullResponseItem
-import com.github.dockerjava.api.model.VolumeOptions
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.okhttp.OkDockerHttpClient
@@ -51,8 +46,9 @@ import com.tencent.devops.dockerhost.exception.ContainerException
 import com.tencent.devops.dockerhost.utils.CommonUtils
 import com.tencent.devops.process.engine.common.VMUtils
 import com.tencent.devops.store.pojo.image.enums.ImageRDTypeEnum
-import org.slf4j.LoggerFactory
 import java.io.File
+import org.apache.commons.io.FileUtils
+import org.slf4j.LoggerFactory
 
 abstract class AbstractDockerHostBuildService constructor(
     private val dockerHostConfig: DockerHostConfig,
@@ -133,7 +129,7 @@ abstract class AbstractDockerHostBuildService constructor(
             dockerBuildInfo.imageRDType.equals(ImageRDTypeEnum.SELF_DEVELOPED.name, ignoreCase = true)) {
             log(
                 buildId = dockerBuildInfo.buildId,
-                message = "自研公共镜像，不从仓库拉取，直接从本地启动...",
+                message = "Public image, directly started from the local...",
                 tag = taskId,
                 containerHashId = dockerBuildInfo.containerHashId
             )
@@ -150,8 +146,9 @@ abstract class AbstractDockerHostBuildService constructor(
                     containerHashId = dockerBuildInfo.containerHashId
                 )
             } catch (t: UnauthorizedException) {
-                val errorMessage = "无权限拉取镜像：$imageName，请检查镜像路径或凭证是否正确；" +
-                        "[buildId=${dockerBuildInfo.buildId}][containerHashId=${dockerBuildInfo.containerHashId}]"
+                val errorMessage = "No permission to pull image $imageName，Please check if the image path or " +
+                    "credentials are correct. [buildId=${dockerBuildInfo.buildId}]" +
+                    "[containerHashId=${dockerBuildInfo.containerHashId}]"
                 logger.error(errorMessage, t)
                 // 直接失败，禁止使用本地镜像
                 throw ContainerException(
@@ -159,7 +156,8 @@ abstract class AbstractDockerHostBuildService constructor(
                     message = errorMessage
                 )
             } catch (t: NotFoundException) {
-                val errorMessage = "镜像不存在：$imageName，请检查镜像路径或凭证是否正确；" +
+                val errorMessage = "Image does not exist $imageName!!，" +
+                    "Please check if the image path or credentials are correct." +
                         "[buildId=${dockerBuildInfo.buildId}][containerHashId=${dockerBuildInfo.containerHashId}]"
                 logger.error(errorMessage, t)
                 // 直接失败，禁止使用本地镜像
@@ -171,13 +169,13 @@ abstract class AbstractDockerHostBuildService constructor(
                 logger.warn("Fail to pull the image $imageName of build ${dockerBuildInfo.buildId}", t)
                 log(
                     buildId = dockerBuildInfo.buildId,
-                    message = "拉取镜像失败，错误信息：${t.message}",
+                    message = "Failed to pull image：${t.message}",
                     tag = taskId,
                     containerHashId = dockerBuildInfo.containerHashId
                 )
                 log(
                     buildId = dockerBuildInfo.buildId,
-                    message = "尝试使用本地镜像启动...",
+                    message = "Trying to boot from a local image...",
                     tag = taskId,
                     containerHashId = dockerBuildInfo.containerHashId
                 )
@@ -203,10 +201,10 @@ abstract class AbstractDockerHostBuildService constructor(
         )
         val dockerImageName = CommonUtils.normalizeImageName(imageName)
         val taskId = if (!containerId.isNullOrBlank()) VMUtils.genStartVMTaskId(containerId!!) else ""
-        log(buildId, "开始拉取镜像，镜像名称：$dockerImageName", taskId, containerHashId)
+        log(buildId, "Start pulling image $dockerImageName", taskId, containerHashId)
         httpLongDockerCli.pullImageCmd(dockerImageName).withAuthConfig(authConfig)
             .exec(MyPullImageResultCallback(buildId, dockerHostBuildApi, taskId, containerHashId)).awaitCompletion()
-        log(buildId, "拉取镜像成功，准备启动构建环境...", taskId, containerHashId)
+        log(buildId, "Pull the image successfully, ready to start the build environment...", taskId, containerHashId)
         return Result(true)
     }
 
@@ -235,77 +233,38 @@ abstract class AbstractDockerHostBuildService constructor(
         }
     }
 
-    private fun getWorkspace(
-        pipelineId: String,
-        vmSeqId: Int,
-        poolNo: Int
-    ): String {
-        return "${dockerHostConfig.hostPathWorkspace}/$pipelineId/${getTailPath(vmSeqId, poolNo)}/"
-    }
-
-    fun mountOverlayfs(
+    fun afterOverlayFs(
         projectId: String,
         pipelineId: String,
         buildId: String,
         vmSeqId: Int,
-        poolNo: Int,
-        hostConfig: HostConfig
+        poolNo: Int
     ) {
-        val qpcGitProjectList = dockerHostBuildApi.getQpcGitProjectList(
-            projectId = projectId,
-            buildId = buildId,
-            vmSeqId = vmSeqId.toString(),
-            poolNo = poolNo
-        )?.data
+        try {
+            val qpcGitProjectList = dockerHostBuildApi.getQpcGitProjectList(
+                projectId = projectId,
+                buildId = buildId,
+                vmSeqId = vmSeqId.toString(),
+                poolNo = poolNo
+            )?.data
 
-        var qpcUniquePath = ""
-        if (qpcGitProjectList != null && qpcGitProjectList.isNotEmpty()) {
-            qpcUniquePath = qpcGitProjectList.first()
+            // 针对overlayfs白名单项目清理工作空间
+            if (qpcGitProjectList != null && qpcGitProjectList.isNotEmpty()) {
+                val upperDir = "${dockerHostConfig.hostPathWorkspace}/$buildId/${getTailPath(vmSeqId, poolNo)}"
+                FileUtils.deleteQuietly(File(upperDir))
+            }
+        } catch (e: Throwable) {
+            logger.info("afterOverlayFs $buildId $vmSeqId $poolNo error: ${e.message}")
         }
-
-        mountOverlayfs(pipelineId, vmSeqId, poolNo, qpcUniquePath, hostConfig)
     }
 
-    fun mountOverlayfs(
+    fun getWorkspace(
         pipelineId: String,
         vmSeqId: Int,
         poolNo: Int,
-        qpcUniquePath: String?,
-        hostConfig: HostConfig
-    ) {
-        if (qpcUniquePath != null && qpcUniquePath.isNotBlank()) {
-            val upperDir = "${getWorkspace(pipelineId, vmSeqId, poolNo)}upper"
-            val workDir = "${getWorkspace(pipelineId, vmSeqId, poolNo)}work"
-            val lowerDir = "${dockerHostConfig.hostPathOverlayfsCache}/$qpcUniquePath"
-
-            if (!File(upperDir).exists()) {
-                File(upperDir).mkdirs()
-            }
-
-            if (!File(workDir).exists()) {
-                File(workDir).mkdirs()
-            }
-
-            if (!File(lowerDir).exists()) {
-                File(lowerDir).mkdirs()
-            }
-
-            val mount = Mount().withType(MountType.VOLUME)
-                .withTarget(dockerHostConfig.volumeWorkspace)
-                .withVolumeOptions(
-                    VolumeOptions().withDriverConfig(
-                        Driver().withName("local").withOptions(
-                            mapOf(
-                                "type" to "overlay",
-                                "device" to "overlay",
-                                "o" to "lowerdir=$lowerDir,upperdir=$upperDir,workdir=$workDir"
-                            )
-                        )
-                    )
-                )
-
-            hostConfig.withMounts(listOf(mount))
-        }
+        path: String
+    ): String {
+        return "$path/$pipelineId/${getTailPath(vmSeqId, poolNo)}/"
     }
 
     private fun getTailPath(vmSeqId: Int, poolNo: Int): String {
@@ -342,7 +301,7 @@ abstract class AbstractDockerHostBuildService constructor(
                     dockerHostBuildApi.postLog(
                         buildId = buildId,
                         red = false,
-                        message = "正在拉取镜像,第${lays}层，进度：$currentProgress%",
+                        message = "Pulling image, layer $lays，process：$currentProgress%",
                         tag = startTaskId,
                         jobId = containerHashId
                     )

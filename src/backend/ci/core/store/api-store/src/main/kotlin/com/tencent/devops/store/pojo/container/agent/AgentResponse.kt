@@ -27,12 +27,21 @@
 
 package com.tencent.devops.store.pojo.container.agent
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 /**
  * deng
  * 2019-04-10
  */
 data class AgentResponse(
+    @get:Schema(title = "env hash id", required = true)
     val id: String, // env hash id
+    @get:Schema(title = "env name", required = true)
     val name: String, // env name
-    val label: String // 正常: xx个，异常: xx个 | (agent status)
+    @get:Schema(title = "agent status", required = true)
+    val label: String, // 正常: xx个，异常: xx个 | (agent status)
+    @get:Schema(title = "源项目", required = false)
+    val sharedProjectId: String? = null,
+    @get:Schema(title = "分享人", required = false)
+    val sharedUserId: String? = null
 )

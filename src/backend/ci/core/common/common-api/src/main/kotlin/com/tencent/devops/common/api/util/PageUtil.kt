@@ -40,10 +40,37 @@ object PageUtil {
         return SQLLimit((oneOffsetPage - 1) * defaultPageSize, defaultPageSize)
     }
 
+    fun convertPageSizeToSQLMAXLimit(page: Int, pageSize: Int): SQLLimit {
+        val oneOffsetPage = if (page <= 0) DEFAULT_PAGE else page
+        val defaultPageSize = when {
+            pageSize <= 0 -> {
+                DEFAULT_PAGE_SIZE
+            }
+            pageSize > MAX_PAGE_SIZE -> {
+                MAX_PAGE_SIZE
+            }
+            else -> {
+                pageSize
+            }
+        }
+        return SQLLimit((oneOffsetPage - 1) * defaultPageSize, defaultPageSize)
+    }
+
     // page & pageSize为空则不分页
     fun convertPageSizeToSQLLimit(page: Int?, pageSize: Int?): SQLLimit {
         val oneOffsetPage = if (page == null || page <= 0) DEFAULT_PAGE else page
         val defaultPageSize = if (pageSize == null || pageSize <= 0) -1 else pageSize
+        return SQLLimit((oneOffsetPage - 1) * defaultPageSize, defaultPageSize)
+    }
+
+    // 限制pageSize大小最大为100
+    fun convertPageSizeToSQLLimitMaxSize(page: Int, pageSize: Int): SQLLimit {
+        val oneOffsetPage = if (page <= 0) 1 else page
+        val defaultPageSize = when {
+            pageSize <= 0 -> 10
+            pageSize > 50 -> 50
+            else -> pageSize
+        }
         return SQLLimit((oneOffsetPage - 1) * defaultPageSize, defaultPageSize)
     }
 
@@ -67,6 +94,7 @@ object PageUtil {
 
     const val DEFAULT_PAGE = 1
     const val DEFAULT_PAGE_SIZE = 10
+    const val MAX_PAGE_SIZE = 100
 
     fun getValidPage(page: Int?): Int {
         var validPage = page

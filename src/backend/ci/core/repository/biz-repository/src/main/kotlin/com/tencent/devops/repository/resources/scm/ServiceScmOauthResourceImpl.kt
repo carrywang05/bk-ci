@@ -32,9 +32,11 @@ import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.web.RestResource
 import com.tencent.devops.repository.api.scm.ServiceScmOauthResource
-import com.tencent.devops.scm.pojo.CommitCheckRequest
 import com.tencent.devops.repository.service.scm.IScmOauthService
 import com.tencent.devops.scm.enums.CodeSvnRegion
+import com.tencent.devops.scm.pojo.CommitCheckRequest
+import com.tencent.devops.scm.pojo.GitCommit
+import com.tencent.devops.scm.pojo.GitCommitReviewInfo
 import com.tencent.devops.scm.pojo.GitMrChangeInfo
 import com.tencent.devops.scm.pojo.GitMrInfo
 import com.tencent.devops.scm.pojo.GitMrReviewInfo
@@ -60,8 +62,10 @@ class ServiceScmOauthResourceImpl @Autowired constructor(private val scmOauthSer
         region: CodeSvnRegion?,
         userName: String?
     ): Result<RevisionInfo> {
-        logger.info("getLatestRevision|(projectName=$projectName, url=$url, type=$type, branch=$branchName, " +
-            "additionalPath=$additionalPath, region=$region, username=$userName)")
+        logger.info(
+            "getLatestRevision|(projectName=$projectName, url=$url, type=$type, branch=$branchName, " +
+                "additionalPath=$additionalPath, region=$region, username=$userName)"
+        )
         return Result(
             scmOauthService.getLatestRevision(
                 projectName = projectName,
@@ -86,7 +90,9 @@ class ServiceScmOauthResourceImpl @Autowired constructor(private val scmOauthSer
         token: String?,
         region: CodeSvnRegion?,
         userName: String?,
-        search: String?
+        search: String?,
+        page: Int,
+        pageSize: Int
     ): Result<List<String>> {
         logger.info("listBranches|(projectName=$projectName, url=$url, type=$type, region=$region, username=$userName)")
         return Result(
@@ -99,7 +105,9 @@ class ServiceScmOauthResourceImpl @Autowired constructor(private val scmOauthSer
                 token = token,
                 region = region,
                 userName = userName,
-                search = search
+                search = search,
+                page = page,
+                pageSize = pageSize
             )
         )
     }
@@ -135,8 +143,10 @@ class ServiceScmOauthResourceImpl @Autowired constructor(private val scmOauthSer
         region: CodeSvnRegion?,
         userName: String
     ): Result<TokenCheckResult> {
-        logger.info("checkPrivateKeyAndToken|(projectName=$projectName, url=$url, type=$type," +
-            " region=$region, username=$userName)")
+        logger.info(
+            "checkPrivateKeyAndToken|(projectName=$projectName, url=$url, type=$type," +
+                " region=$region, username=$userName)"
+        )
         return Result(
             scmOauthService.checkPrivateKeyAndToken(
                 projectName = projectName,
@@ -233,6 +243,45 @@ class ServiceScmOauthResourceImpl @Autowired constructor(private val scmOauthSer
                 type = type,
                 token = token,
                 mrId = mrId
+            )
+        )
+    }
+
+    override fun getMrCommitList(
+        projectName: String,
+        url: String,
+        type: ScmType,
+        token: String?,
+        mrId: Long,
+        page: Int,
+        size: Int
+    ): Result<List<GitCommit>> {
+        return Result(
+            scmOauthService.getMrCommitList(
+                projectName = projectName,
+                url = url,
+                type = type,
+                token = token,
+                mrId = mrId,
+                page = page,
+                size = size
+            )
+        )
+    }
+    override fun getCommitReviewInfo(
+        projectName: String,
+        url: String,
+        type: ScmType,
+        token: String?,
+        crId: Long
+    ): Result<GitCommitReviewInfo?> {
+        return Result(
+            scmOauthService.getCommitReviewInfo(
+                projectName = projectName,
+                url = url,
+                type = type,
+                token = token,
+                crId = crId
             )
         )
     }

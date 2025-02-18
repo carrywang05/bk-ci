@@ -28,46 +28,40 @@
 package com.tencent.devops.process.utils
 
 const val PIPELINE_VERSION = "BK_CI_PIPELINE_VERSION" // "pipeline.version"
+const val PIPELINE_START_PARENT_PROJECT_ID = "BK_CI_PARENT_PROJECT_ID"
 const val PIPELINE_START_PARENT_PIPELINE_ID = "BK_CI_PARENT_PIPELINE_ID" // "pipeline.start.parent.pipeline.id"
+const val PIPELINE_START_PARENT_PIPELINE_NAME = "BK_CI_PARENT_PIPELINE_NAME"
 const val PIPELINE_START_PARENT_BUILD_ID = "BK_CI_PARENT_BUILD_ID" // "pipeline.start.parent.build.id"
+const val PIPELINE_START_PARENT_BUILD_NUM = "BK_CI_PARENT_BUILD_NUM"
 const val PIPELINE_START_PARENT_BUILD_TASK_ID = "BK_CI_PARENT_BUILD_TASK_ID" // "pipeline.start.parent.build.task.id"
+const val PIPELINE_START_PARENT_EXECUTE_COUNT = "BK_CI_PARENT_EXECUTE_COUNT"
 const val PIPELINE_START_USER_ID = "BK_CI_START_USER_ID" // "pipeline.start.user.id"
 const val PIPELINE_START_USER_NAME = "BK_CI_START_USER_NAME" // "pipeline.start.user.name"
 const val PIPELINE_START_WEBHOOK_USER_ID = "BK_CI_START_WEBHOOK_USER_ID" // "pipeline.start.webhook.user.id"
 const val PIPELINE_START_PIPELINE_USER_ID = "BK_CI_START_PIPELINE_USER_ID" // "pipeline.start.pipeline.user.id"
+const val PIPELINE_START_SERVICE_USER_ID = "BK_CI_START_SERVICE_USER_ID" // "pipeline.start.service.user.id"
+const val PIPELINE_START_MANUAL_USER_ID = "BK_CI_START_MANUAL_USER_ID" // "pipeline.start.manual.user.id"
+const val PIPELINE_START_TIME_TRIGGER_USER_ID = "BK_CI_START_TIME_TRIGGER_USER_ID"
+const val PIPELINE_START_REMOTE_USER_ID = "BK_CI_START_REMOTE_USER_ID"
+const val PIPELINE_START_REMOTE_CLIENT_IP = "BK_CI_START_REMOTE_CLIENT_IP"
 const val PIPELINE_START_TYPE = "BK_CI_START_TYPE" // "pipeline.start.type"
 const val PIPELINE_START_CHANNEL = "BK_CI_START_CHANNEL" // "pipeline.start.channel"
-const val PIPELINE_BUILD_NUM = "BK_CI_BUILD_NUM" // "pipeline.build.num"
+const val PIPELINE_BUILD_NUM = "BK_CI_BUILD_NUM" // "pipeline.build.num"// 当前构建的唯一标示ID，从1开始自增
 const val PIPELINE_BUILD_LAST_UPDATE = "BK_CI_BUILD_LAST_UPDATE" // "pipeline.build.last.update"
 const val PIPELINE_BUILD_SVN_REVISION = "BK_CI_BUILD_SVN_REVISION" // "pipeline.build.svn.revision"
 const val PIPELINE_BUILD_NUM_ALIAS = "BK_CI_BUILD_NUM_ALIAS"
-
-const val PIPELINE_WEBHOOK_REVISION = "BK_CI_HOOK_REVISION" // hookRevision
-const val PIPELINE_WEBHOOK_BRANCH = "BK_CI_HOOK_BRANCH" // hookBranch
-const val PIPELINE_WEBHOOK_SOURCE_BRANCH = "BK_CI_HOOK_SOURCE_BRANCH" // hookSourceBranch
-const val PIPELINE_WEBHOOK_TARGET_BRANCH = "BK_CI_HOOK_TARGET_BRANCH" // hookTargetBranch
-const val PIPELINE_WEBHOOK_SOURCE_URL = "BK_CI_HOOK_SOURCE_URL" // hookSourceUrl
-const val PIPELINE_WEBHOOK_TARGET_URL = "BK_CI_HOOK_TARGET_URL" // hookTargetUrl
-const val PIPELINE_WEBHOOK_REPO = "BK_CI_HOOK_REPO" // hookRepo
-const val PIPELINE_WEBHOOK_REPO_TYPE = "BK_CI_HOOK_REPO_TYPE" // hookRepoType
-const val PIPELINE_WEBHOOK_BLOCK = "BK_CI_HOOK_BLOCK" // hookBlock
-const val PIPELINE_WEBHOOK_TYPE = "BK_CI_HOOK_TYPE" // hookType
-const val PIPELINE_WEBHOOK_EVENT_TYPE = "BK_CI_HOOK_EVENT_TYPE" // hookEventType
-const val PIPELINE_WEBHOOK_MR_ID = "BK_CI_HOOK_MR_ID" // bk_hookMergeRequestId
-const val PIPELINE_REPO_NAME = "BK_CI_REPO_NAME" // "repoName"
-const val PIPELINE_WEBHOOK_MR_COMMITTER = "BK_CI_HOOK_MR_COMMITTER" // "bk_hookMergeRequest_committer"
-const val PIPELINE_WEBHOOK_COMMIT_MESSAGE = "BK_CI_HOOK_MESSAGE" // hook message
-const val PIPELINE_WEBHOOK_SOURCE_PROJECT_ID = "BK_CI_HOOK_SOURCE_PROJECT_ID"
-const val PIPELINE_WEBHOOK_TARGET_PROJECT_ID = "BK_CI_HOOK_TARGET_PROJECT_ID"
-const val PIPELINE_WEBHOOK_SOURCE_REPO_NAME = "BK_CI_HOOK_SOURCE_REPO_NAME"
-const val PIPELINE_WEBHOOK_TARGET_REPO_NAME = "BK_CI_HOOK_TARGET_REPO_NAME"
-const val PIPELINE_WEBHOOK_QUEUE = "BK_CI_HOOK_QUEUE"
+const val PIPELINE_BUILD_URL = "BK_CI_BUILD_URL"
+// 禁用定时触发器参数,当流水线配置这个参数，并且值为true,则禁用定时触发器
+const val PIPELINE_TIMER_DISABLE = "BK_CI_TIMER_DISABLE"
+// 子流水线运行方式
+const val PIPELINE_START_SUB_RUN_MODE = "BK_CI_SUB_PIPELINE_RUN_MODE"
 
 const val GIT_MR_NUMBER = "BK_CI_GIT_MR_NUMBER" // git_mr_number
 const val GITHUB_PR_NUMBER = "BK_CI_GITHUB_PR_NUMBER" // github_pr_number
 
 const val PIPELINE_NAME = "BK_CI_PIPELINE_NAME" // "pipeline.name"
 const val PIPELINE_ID = "BK_CI_PIPELINE_ID" // "pipeline.id"
+const val WORKSPACE = "WORKSPACE" // "ci.workspace"
 
 const val PIPELINE_TIME_DURATION = "BK_CI_BUILD_TOTAL_TIME" // "pipeline.time.duration"
 
@@ -93,8 +87,11 @@ const val BK_CI_BUILD_FAIL_TASKS = "BK_CI_BUILD_FAIL_TASKS"
 const val BK_CI_BUILD_FAIL_TASKNAMES = "BK_CI_BUILD_FAIL_TASKNAMES"
 
 const val PIPELINE_VIEW_MY_PIPELINES = "myPipeline"
+const val PIPELINE_VIEW_MY_LIST_PIPELINES = "myListPipeline" // 兼容APP , 后面需要干掉
 const val PIPELINE_VIEW_FAVORITE_PIPELINES = "collect"
 const val PIPELINE_VIEW_ALL_PIPELINES = "allPipeline"
+const val PIPELINE_VIEW_UNCLASSIFIED = "unclassified" // 流水线视图未分组
+const val PIPELINE_VIEW_RECENT_USE = "recentUse"
 
 const val PIPELINE_MATERIAL_URL = "BK_CI_PIEPLEINE_MATERIAL_URL" // pipeline.material.url
 const val PIPELINE_MATERIAL_BRANCHNAME = "BK_CI_PIPELINE_MATERIAL_BRANCHNAME" // pipeline.material.branchName
@@ -110,6 +107,10 @@ const val MINORVERSION = "BK_CI_MINOR_VERSION" // MinorVersion
 const val FIXVERSION = "BK_CI_FIX_VERSION" // FixVersion
 const val BUILD_NO = "BK_CI_BUILD_NO" // "BuildNo"
 const val BUILD_STATUS = "BK_CI_BUILD_STATUS" // "BuildStatus"
+const val BK_DOCKER_TARGE_IMAGE_TAG = "BK_DOCKER_TARGE_IMAGE_TAG"
+const val BK_DOCKER_TARGE_IMAGE_NAME = "BK_DOCKER_TARGE_IMAGE_NAME"
+
+const val JOB_RETRY_TASK_ID = "job.retry_task_id"
 
 /**
  * 后续新增的变量统一用“BK_CI_大写的变量名称”命名，历史的变量名称统一整改
@@ -121,15 +122,28 @@ const val PIPELINE_ATOM_NAME = "BK_CI_ATOM_NAME" // "流水线插件名称"
 const val PIPELINE_ATOM_CODE = "BK_CI_ATOM_CODE" // "流水线插件代码"
 const val PIPELINE_ATOM_VERSION = "BK_CI_ATOM_VERSION" // "流水线插件版本"
 const val PIPELINE_TASK_NAME = "BK_CI_TASK_NAME" // "流水线任务名称（步骤名称）"
+const val PIPELINE_STEP_ID = "BK_CI_STEP_ID" // "用户自定义ID（上下文标识）"
+const val PIPELINE_ATOM_TIMEOUT = "BK_CI_ATOM_TIMEOUT" // "流水线插件超时时间"
+const val PIPELINE_DIALECT = "BK_CI_PIPELINE_DIALECT" // 流水线语法风格
+/**
+ * 自定义触发材料
+ */
+const val BK_CI_MATERIAL_ID = "BK_CI_MATERIAL_ID" // 触发材料ID
+const val BK_CI_MATERIAL_NAME = "BK_CI_MATERIAL_NAME" // 触发材料名称
+const val BK_CI_MATERIAL_URL = "BK_CI_MATERIAL_URL" // 触发材料链接
+
+const val BK_CI_AUTHORIZER = "BK_CI_AUTHORIZER" // 流水线权限代持人
 
 /**
  * 流水线设置-最大排队数量-默认值
  */
 const val PIPELINE_SETTING_MAX_QUEUE_SIZE_DEFAULT = 10
+
 /**
  * 流水线插件设置-失败重试最大值
  */
 const val TASK_FAIL_RETRY_MAX_COUNT = 5
+
 /**
  * 流水线插件设置-失败重试最小值
  */
@@ -139,14 +153,17 @@ const val TASK_FAIL_RETRY_MIN_COUNT = 1
  * 流水线设置-最大排队数量-最小值
  */
 const val PIPELINE_SETTING_MAX_QUEUE_SIZE_MIN = 0
+
 /**
  * 流水线设置-最大排队数量-最大值
  */
-const val PIPELINE_SETTING_MAX_QUEUE_SIZE_MAX = 20
+const val PIPELINE_SETTING_MAX_QUEUE_SIZE_MAX = 200
+
 /**
  * 流水线设置-最大并发数量-默认值
  */
 const val PIPELINE_SETTING_MAX_CON_QUEUE_SIZE_DEFAULT = 50
+
 /**
  * 流水线设置-最大并发数量-最大值
  */
@@ -177,6 +194,36 @@ const val PIPELINE_TASK_MESSAGE_STRING_LENGTH_MAX = 4000
  */
 const val PIPELINE_MESSAGE_STRING_LENGTH_MAX = 30000
 
+/**
+ * 流水线设置-流水线最大任务并发数量-最大值
+ */
+const val PIPELINE_CON_RUNNING_CONTAINER_SIZE_MAX = 30
+
+/**
+ * 流水线设置-矩阵内最大并发数量-默认值
+ */
+const val PIPELINE_MATRIX_MAX_CON_RUNNING_SIZE_DEFAULT = 5
+
+/**
+ * 流水线设置-矩阵内最大并发数量-最大值
+ */
+const val PIPELINE_MATRIX_CON_RUNNING_SIZE_MAX = 20
+
+/**
+ * 流水线设置-Stage内最大分裂后Job数量-最大值
+ */
+const val PIPELINE_STAGE_CONTAINERS_COUNT_MAX = 256
+
+/**
+ * 流水线设置-自定义表达式执行条件的条件长度-最大值
+ */
+const val PIPELINE_CONDITION_EXPRESSION_LENGTH_MAX = 512
+
+/**
+ * 入库VAR表，流水线变量最大长度
+ */
+const val PIPELINE_VARIABLES_STRING_LENGTH_MAX = 4000
+
 const val PIPELINE_TIME_START = "BK_CI_BUILD_START_TIME" // "pipeline.time.start"
 
 const val PIPELINE_TIME_END = "BK_CI_BUILD_END_TIME" // "pipeline.time.end"
@@ -190,10 +237,16 @@ const val PIPELINE_RES_NUM_MIN = 50
 
 const val KEY_PIPELINE_ID = "pipelineId"
 
+const val KEY_PIPELINE_NAME = "pipelineName"
+
 const val KEY_PROJECT_ID = "projectId"
+
+const val KEY_TEMPLATE_ID = "templateId"
 
 const val KEY_STAGE = "stage"
 
 const val KEY_JOB = "job"
 
 const val KEY_TASK = "task"
+
+const val KEY_TASK_ATOM = "taskAtom"

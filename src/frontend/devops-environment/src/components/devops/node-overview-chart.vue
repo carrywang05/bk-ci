@@ -5,61 +5,117 @@
                 <div class="info">
                     <div class="left">{{ $t('environment.nodeInfo.cpuUsageRate') }}</div>
                     <div class="right">
-                        <bk-dropdown-menu :align="'right'" ref="cpuDropdown">
-                            <div style="cursor: pointer;" slot="dropdown-trigger">
-                                <span>{{cpuToggleRangeStr}}</span>
+                        <bk-dropdown-menu
+                            :align="'right'"
+                            ref="cpuDropdown"
+                        >
+                            <div
+                                style="cursor: pointer;"
+                                slot="dropdown-trigger"
+                            >
+                                <span>{{ cpuToggleRangeStr }}</span>
                                 <button class="dropdown-button">
                                     <i class="devops-icon icon-angle-down"></i>
                                 </button>
                             </div>
-                            <ul class="bk-dropdown-list" slot="dropdown-content">
+                            <ul
+                                class="bk-dropdown-list"
+                                slot="dropdown-content"
+                            >
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('cpuDropdown', 'cpuToggleRangeStr', 'cpu_summary', '1')">{{ $t('environment.nodeInfo.oneHour') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('cpuDropdown', 'cpuToggleRangeStr', 'cpu_summary', '1')"
+                                    >{{ $t('environment.nodeInfo.oneHour') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('cpuDropdown', 'cpuToggleRangeStr', 'cpu_summary', '2')">{{ $t('environment.nodeInfo.oneDay') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('cpuDropdown', 'cpuToggleRangeStr', 'cpu_summary', '2')"
+                                    >{{ $t('environment.nodeInfo.oneDay') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('cpuDropdown', 'cpuToggleRangeStr', 'cpu_summary', '3')">{{ $t('environment.nodeInfo.oneWeek') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('cpuDropdown', 'cpuToggleRangeStr', 'cpu_summary', '3')"
+                                    >{{ $t('environment.nodeInfo.oneWeek') }}</a>
                                 </li>
                             </ul>
                         </bk-dropdown-menu>
                     </div>
                 </div>
-                <chart :options="cpuLine" ref="cpuLine1" auto-resize v-show="!isEmptyCpu"></chart>
-                <div class="paas-ci-empty" v-show="isEmptyCpu">
-                    <img :src="calcSrc" :alt="$t('environment.noData')" class="empty-pic">
-                </div>
+                <chart
+                    :option="cpuLine"
+                    ref="cpuLine1"
+                    autoresize
+                    :loading="cpuChartLoading"
+                    :loading-options="chartLoadingOption"
+                    v-show="!isEmptyCpu"
+                ></chart>
+                <bk-exception
+                    v-show="isEmptyCpu"
+                    class="exception-wrap-item exception-part"
+                    type="empty"
+                    scene="part"
+                />
             </div>
             <div class="part top-right">
                 <div class="info">
                     <div class="left">{{ $t('environment.nodeInfo.ramUsageRate') }}</div>
                     <div class="right">
-                        <bk-dropdown-menu :align="'right'" ref="memoryDropdown">
-                            <div style="cursor: pointer;" slot="dropdown-trigger">
-                                <span>{{memToggleRangeStr}}</span>
+                        <bk-dropdown-menu
+                            :align="'right'"
+                            ref="memoryDropdown"
+                        >
+                            <div
+                                style="cursor: pointer;"
+                                slot="dropdown-trigger"
+                            >
+                                <span>{{ memToggleRangeStr }}</span>
                                 <button class="dropdown-button">
                                     <i class="devops-icon icon-angle-down"></i>
                                 </button>
                             </div>
-                            <ul class="bk-dropdown-list" slot="dropdown-content">
+                            <ul
+                                class="bk-dropdown-list"
+                                slot="dropdown-content"
+                            >
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('memoryDropdown', 'memToggleRangeStr', 'mem', '1')">{{ $t('environment.nodeInfo.oneHour') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('memoryDropdown', 'memToggleRangeStr', 'mem', '1')"
+                                    >{{ $t('environment.nodeInfo.oneHour') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('memoryDropdown', 'memToggleRangeStr', 'mem', '2')">{{ $t('environment.nodeInfo.oneDay') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('memoryDropdown', 'memToggleRangeStr', 'mem', '2')"
+                                    >{{ $t('environment.nodeInfo.oneDay') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('memoryDropdown', 'memToggleRangeStr', 'mem', '3')">{{ $t('environment.nodeInfo.oneWeek') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('memoryDropdown', 'memToggleRangeStr', 'mem', '3')"
+                                    >{{ $t('environment.nodeInfo.oneWeek') }}</a>
                                 </li>
                             </ul>
                         </bk-dropdown-menu>
                     </div>
                 </div>
-                <chart :options="memoryLine" ref="memoryLine1" auto-resize v-show="!isEmptyMemory"></chart>
-                <div class="paas-ci-empty" v-show="isEmptyMemory">
-                    <img :src="calcSrc" :alt="$t('environment.noData')" class="empty-pic">
-                </div>
+                <chart
+                    :option="memoryLine"
+                    ref="memoryLine1"
+                    :loading="memChartLoading"
+                    :loading-options="chartLoadingOption"
+                    autoresize
+                    v-show="!isEmptyMemory"
+                ></chart>
+                <bk-exception
+                    v-show="isEmptyMemory"
+                    class="exception-wrap-item exception-part"
+                    type="empty"
+                    scene="part"
+                />
             </div>
         </div>
         <div class="node-overview-chart">
@@ -67,77 +123,146 @@
                 <div class="info">
                     <div class="left">{{ $t('environment.nodeInfo.networkIo') }}</div>
                     <div class="right">
-                        <bk-dropdown-menu :align="'right'" ref="networkDropdown">
-                            <div style="cursor: pointer;" slot="dropdown-trigger">
-                                <span>{{networkToggleRangeStr}}</span>
+                        <bk-dropdown-menu
+                            :align="'right'"
+                            ref="networkDropdown"
+                        >
+                            <div
+                                style="cursor: pointer;"
+                                slot="dropdown-trigger"
+                            >
+                                <span>{{ networkToggleRangeStr }}</span>
                                 <button class="dropdown-button">
                                     <i class="devops-icon icon-angle-down"></i>
                                 </button>
                             </div>
-                            <ul class="bk-dropdown-list" slot="dropdown-content">
+                            <ul
+                                class="bk-dropdown-list"
+                                slot="dropdown-content"
+                            >
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('networkDropdown', 'networkToggleRangeStr', 'net', '1')">{{ $t('environment.nodeInfo.oneHour') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('networkDropdown', 'networkToggleRangeStr', 'net', '1')"
+                                    >{{ $t('environment.nodeInfo.oneHour') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('networkDropdown', 'networkToggleRangeStr', 'net', '2')">{{ $t('environment.nodeInfo.oneDay') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('networkDropdown', 'networkToggleRangeStr', 'net', '2')"
+                                    >{{ $t('environment.nodeInfo.oneDay') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('networkDropdown', 'networkToggleRangeStr', 'net', '3')">{{ $t('environment.nodeInfo.oneWeek') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('networkDropdown', 'networkToggleRangeStr', 'net', '3')"
+                                    >{{ $t('environment.nodeInfo.oneWeek') }}</a>
                                 </li>
                             </ul>
                         </bk-dropdown-menu>
                     </div>
                 </div>
-                <chart :options="networkLine" ref="networkLine1" auto-resize v-show="!isEmptyNetwork"></chart>
-                <div class="paas-ci-empty" v-show="isEmptyNetwork">
-                    <img :src="calcSrc" :alt="$t('environment.noData')" class="empty-pic">
-                </div>
+                <chart
+                    :option="networkLine"
+                    ref="networkLine1"
+                    :loading="netChartLoading"
+                    :loading-options="chartLoadingOption"
+                    autoresize
+                    v-show="!isEmptyNetwork"
+                ></chart>
+                <bk-exception
+                    v-show="isEmptyNetwork"
+                    class="exception-wrap-item exception-part"
+                    type="empty"
+                    scene="part"
+                />
             </div>
             <div class="part">
                 <div class="info">
                     <div class="left">{{ $t('environment.nodeInfo.diskIo') }}</div>
                     <div class="right">
-                        <bk-dropdown-menu :align="'right'" ref="storageDropdown">
-                            <div style="cursor: pointer;" slot="dropdown-trigger">
-                                <span>{{storageToggleRangeStr}}</span>
+                        <bk-dropdown-menu
+                            :align="'right'"
+                            ref="storageDropdown"
+                        >
+                            <div
+                                style="cursor: pointer;"
+                                slot="dropdown-trigger"
+                            >
+                                <span>{{ storageToggleRangeStr }}</span>
                                 <button class="dropdown-button">
                                     <i class="devops-icon icon-angle-down"></i>
                                 </button>
                             </div>
-                            <ul class="bk-dropdown-list" slot="dropdown-content">
+                            <ul
+                                class="bk-dropdown-list"
+                                slot="dropdown-content"
+                            >
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('storageDropdown', 'storageToggleRangeStr', 'io', '1')">{{ $t('environment.nodeInfo.oneHour') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('storageDropdown', 'storageToggleRangeStr', 'io', '1')"
+                                    >{{ $t('environment.nodeInfo.oneHour') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('storageDropdown', 'storageToggleRangeStr', 'io', '2')">{{ $t('environment.nodeInfo.oneDay') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('storageDropdown', 'storageToggleRangeStr', 'io', '2')"
+                                    >{{ $t('environment.nodeInfo.oneDay') }}</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:;" @click.stop="toggleRange('storageDropdown', 'storageToggleRangeStr', 'io', '3')">{{ $t('environment.nodeInfo.oneWeek') }}</a>
+                                    <a
+                                        href="javascript:;"
+                                        @click.stop="toggleRange('storageDropdown', 'storageToggleRangeStr', 'io', '3')"
+                                    >{{ $t('environment.nodeInfo.oneWeek') }}</a>
                                 </li>
                             </ul>
                         </bk-dropdown-menu>
                     </div>
                 </div>
-                <chart :options="storageLine" ref="storageLine1" auto-resize v-show="!isEmptyDiskio"></chart>
-                <div class="paas-ci-empty" v-show="isEmptyDiskio">
-                    <img :src="calcSrc" :alt="$t('environment.noData')" class="empty-pic">
-                </div>
+                <chart
+                    :option="storageLine"
+                    ref="storageLine1"
+                    :loading="ioChartLoading"
+                    :loading-options="chartLoadingOption"
+                    autoresize
+                    v-show="!isEmptyDiskio"
+                ></chart>
+                <bk-exception
+                    v-show="isEmptyDiskio"
+                    class="exception-wrap-item exception-part"
+                    type="empty"
+                    scene="part"
+                />
             </div>
         </div>
     </div>
 </template>
 
 <script>
-    import ECharts from 'vue-echarts/components/ECharts.vue'
-    import 'echarts/lib/chart/line'
-    import 'echarts/lib/component/tooltip'
-    import 'echarts/lib/component/legend'
+    import { use } from 'echarts/core'
+    import VChart from 'vue-echarts'
+    import { CanvasRenderer } from 'echarts/renderers'
+    import { LineChart } from 'echarts/charts'
+    import {
+        GridComponent,
+        TooltipComponent,
+        LegendComponent
+    } from 'echarts/components'
     import { nodeOverview } from '@/utils/chart-option'
     import { bus } from '@/utils/bus'
 
+    use([
+        CanvasRenderer,
+        LineChart,
+        GridComponent,
+        TooltipComponent,
+        LegendComponent
+    ])
+
     export default {
         components: {
-            chart: ECharts
+            chart: VChart
         },
         data () {
             return {
@@ -153,7 +278,10 @@
                 memoryLine: nodeOverview.memory,
                 networkLine: nodeOverview.network,
                 storageLine: nodeOverview.storage,
-                calcSrc: require('@/images/no_data.png')
+                cpuChartLoading: false,
+                memChartLoading: false,
+                netChartLoading: false,
+                ioChartLoading: false
             }
         },
         computed: {
@@ -162,6 +290,13 @@
             },
             nodeHashId () {
                 return this.$route.params.nodeHashId
+            },
+            chartLoadingOption () {
+                return {
+                    text: this.$t('environment.loading'),
+                    color: '#30d878',
+                    maskColor: 'rgba(255, 255, 255, 0.8)'
+                }
             }
         },
         created () {
@@ -199,43 +334,33 @@
                     timeRange: range === '1' ? 'HOUR' : range === '2' ? 'DAY' : 'WEEK'
                 }
 
-                // 图表组件 ref
-                let ref
                 // 设置图表数据的方法名
                 let hookFuncName
                 if (idx === 'cpu_summary') {
-                    ref = this.$refs.cpuLine1
                     hookFuncName = 'setCpuData'
+                    this.cpuChartLoading = true
                 } else if (idx === 'mem') {
-                    ref = this.$refs.memoryLine1
                     hookFuncName = 'setMemData'
+                    this.memChartLoading = true
                 } else if (idx === 'io') {
-                    ref = this.$refs.storageLine1
                     hookFuncName = 'setStorageData'
+                    this.ioChartLoading = true
                 } else if (idx === 'net') {
-                    ref = this.$refs.networkLine1
                     hookFuncName = 'setNetworkData'
+                    this.netChartLoading = true
                 }
-
-                ref && ref.showLoading({
-                    text: this.$t('environment.loading'),
-                    color: '#30d878',
-                    maskColor: 'rgba(255, 255, 255, 0.8)'
-                })
 
                 if (hookFuncName) {
-                    this[hookFuncName](ref, params)
+                    this[hookFuncName](params)
                 }
             },
-            async setCpuData (ref, params) {
-                if (!ref) {
-                    return
-                }
+            async setCpuData (params) {
                 const chartData = []
                 const emptyData = []
 
                 try {
                     const res = await this.$store.dispatch('environment/getNodeCpuMetrics', { params })
+                    console.log(res)
                     if (res.usage_user.length) {
                         this.isEmptyCpu = false
                         res.usage_user.forEach(item => {
@@ -245,9 +370,10 @@
                             emptyData.push(0)
                         })
 
-                        this.cpuLine.series[0].data.splice(0, this.cpuLine.series[0].data.length, ...chartData)
-
-                        ref.hideLoading()
+                        this.$nextTick(() => {
+                            this.cpuLine.series[0].data.splice(0, this.cpuLine.series[0].data.length, ...chartData)
+                            this.cpuChartLoading = false
+                        })
                     } else {
                         this.isEmptyCpu = true
                     }
@@ -261,10 +387,7 @@
                     })
                 }
             },
-            async setMemData (ref, params) {
-                if (!ref) {
-                    return
-                }
+            async setMemData (params) {
                 const chartData = []
                 const emptyData = []
 
@@ -278,8 +401,10 @@
                             })
                             emptyData.push(0)
                         })
-                        this.memoryLine.series[0].data.splice(0, this.memoryLine.series[0].data.length, ...chartData)
-                        ref.hideLoading()
+                        this.$nextTick(() => {
+                            this.memoryLine.series[0].data.splice(0, this.memoryLine.series[0].data.length, ...chartData)
+                            this.memChartLoading = false
+                        })
                     } else {
                         this.isEmptyMemory = true
                     }
@@ -293,11 +418,7 @@
                     })
                 }
             },
-            async setNetworkData (ref, params) {
-                if (!ref) {
-                    return
-                }
-
+            async setNetworkData (params) {
                 try {
                     const res = await this.$store.dispatch('environment/getNodeNetworkMetrics', { params })
                     if (JSON.stringify(res) === '{}') {
@@ -328,8 +449,11 @@
                                 }
                             )
                         })
-                        this.networkLine.series.splice(0, this.networkLine.series.length, ...readChartData || [])
-                        this.$refs.networkLine1.hideLoading()
+
+                        this.$nextTick(() => {
+                            this.networkLine.series.splice(0, this.networkLine.series.length, ...readChartData || [])
+                            this.netChartLoading = false
+                        })
                     }
                 } catch (err) {
                     const message = err.message ? err.message : err
@@ -341,10 +465,7 @@
                     })
                 }
             },
-            async setStorageData (ref, params) {
-                if (!ref) {
-                    return
-                }
+            async setStorageData (params) {
                 try {
                     const res = await this.$store.dispatch('environment/getNodeDiskioMetrics', { params })
 
@@ -376,8 +497,10 @@
                                 }
                             )
                         })
-                        this.storageLine.series.splice(0, this.storageLine.series.length, ...readChartData || [])
-                        this.$refs.storageLine1.hideLoading()
+                        this.$nextTick(() => {
+                            this.storageLine.series.splice(0, this.storageLine.series.length, ...readChartData || [])
+                            this.ioChartLoading = false
+                        })
                     }
                 } catch (err) {
                     const message = err.message ? err.message : err
@@ -407,7 +530,7 @@
             .part {
                 width: 50%;
                 float: left;
-                height: 250px;
+                min-height: 250px;
                 &.top-left {
                     border-right: 1px solid $borderWeightColor;
                     border-bottom: 1px solid $borderWeightColor;
@@ -460,18 +583,6 @@
             .echarts {
                 width: 100%;
                 height: 180px;
-            }
-        }
-        .paas-ci-empty {
-            position: relative;
-            width: 100%;
-            height: 180px;
-            text-align: center;
-            .empty-pic {
-                position: relative;
-                top: 36px;
-                width: 80px;
-                height: 80px;
             }
         }
     }

@@ -1,7 +1,10 @@
 <template>
     <section class="devops-empty-tips">
         <p v-if="showLock">
-            <icon name="locked" size="52" />
+            <icon
+                name="locked"
+                size="52"
+            />
         </p>
         <h2 class="title">
             {{ title }}
@@ -23,8 +26,10 @@
     export default class EmptyTips extends Vue {
         @Prop({ default: false })
         showLock
+
         @Prop()
         title
+
         @Prop()
         desc
     }

@@ -31,18 +31,18 @@ import com.tencent.devops.common.log.utils.BuildLogPrinter
 import com.tencent.devops.common.pipeline.enums.BuildStatus
 import com.tencent.devops.process.engine.common.VMUtils
 import com.tencent.devops.process.engine.pojo.PipelineBuildContainer
-import com.tencent.devops.process.engine.service.PipelineRuntimeService
+import com.tencent.devops.process.engine.service.PipelineContainerService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
 class DependOnControl @Autowired constructor(
-    private val pipelineRuntimeService: PipelineRuntimeService,
+    private val pipelineContainerService: PipelineContainerService,
     private val buildLogPrinter: BuildLogPrinter
 ) {
 
     fun dependOnJobStatus(container: PipelineBuildContainer): BuildStatus {
-        val dependRel = container.controlOption?.jobControlOption?.dependOnContainerId2JobIds
+        val dependRel = container.controlOption.jobControlOption.dependOnContainerId2JobIds
             ?: return BuildStatus.SUCCEED // 没有设置依赖关系，直接返回成功
         val logBuilder = StringBuilder("Current job depends on ${dependRel.values}, current status: \n")
 
@@ -52,12 +52,15 @@ class DependOnControl @Autowired constructor(
             buildId = container.buildId,
             message = logBuilder.toString(),
             tag = VMUtils.genStartVMTaskId(container.seq.toString()),
-            jobId = container.containerId,
-            executeCount = container.executeCount
+            containerHashId = container.containerHashId,
+            executeCount = container.executeCount,
+            jobId = null,
+            stepId = VMUtils.genStartVMTaskId(container.seq.toString())
         )
         return buildStatus
     }
 
+    @Suppress("ComplexMethod")
     private fun checkJobStatusByDepRel(
         container: PipelineBuildContainer,
         dependRel: Map<String, String>,
@@ -66,8 +69,11 @@ class DependOnControl @Autowired constructor(
         var foundFailure = false
         var foundSkip = false
         var successCnt = 0
-        val jobStatusMap = pipelineRuntimeService.listContainers(container.buildId, container.stageId)
-            .associate { it.containerId to it.status }
+        val jobStatusMap = pipelineContainerService.listContainers(
+            projectId = container.projectId,
+            buildId = container.buildId,
+            stageId = container.stageId
+        ).associate { it.containerId to it.status }
 
         for (it in dependRel.entries) {
             val dependOnJobStatus = jobStatusMap[it.key]
@@ -77,7 +83,7 @@ class DependOnControl @Autowired constructor(
                 foundSkip = true
             } else if (dependOnJobStatus == null || dependOnJobStatus.isSuccess()) {
                 successCnt++
-            } else if (dependOnJobStatus.isFailure()) { // 发现非正常构建结束，则表示失败
+            } else if (dependOnJobStatus.isFailure() || dependOnJobStatus.isCancel()) { // 发现非正常构建结束，则表示失败
                 foundFailure = true
             }
 

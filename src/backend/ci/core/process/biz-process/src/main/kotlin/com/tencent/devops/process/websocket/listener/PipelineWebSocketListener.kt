@@ -27,11 +27,13 @@
 
 package com.tencent.devops.process.websocket.listener
 
+import com.tencent.devops.common.event.listener.pipeline.PipelineEventListener
+import com.tencent.devops.common.pipeline.enums.ChannelCode
 import com.tencent.devops.common.event.dispatcher.pipeline.PipelineEventDispatcher
-import com.tencent.devops.common.event.listener.pipeline.BaseListener
 import com.tencent.devops.common.websocket.dispatch.WebSocketDispatcher
 import com.tencent.devops.common.websocket.enum.RefreshType
 import com.tencent.devops.process.engine.pojo.event.PipelineBuildWebSocketPushEvent
+import com.tencent.devops.process.service.PipelineInfoFacadeService
 import com.tencent.devops.process.websocket.service.PipelineWebsocketService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
@@ -40,10 +42,17 @@ import org.springframework.stereotype.Component
 class PipelineWebSocketListener @Autowired constructor(
     private val pipelineWebsocketService: PipelineWebsocketService,
     private val webSocketDispatcher: WebSocketDispatcher,
-    pipelineEventDispatcher: PipelineEventDispatcher
-) : BaseListener<PipelineBuildWebSocketPushEvent>(pipelineEventDispatcher) {
+    pipelineEventDispatcher: PipelineEventDispatcher,
+    private val pipelineInfoFacadeService: PipelineInfoFacadeService
+) : PipelineEventListener<PipelineBuildWebSocketPushEvent>(pipelineEventDispatcher) {
 
     override fun run(event: PipelineBuildWebSocketPushEvent) {
+
+        val channelCode = pipelineInfoFacadeService.getPipelineChannel(event.projectId, event.pipelineId)
+        // 非页面类的流水线,直接返回。 不占用redis资源
+        if (channelCode != null && !ChannelCode.webChannel(channelCode)) {
+            return
+        }
 
         if (event.refreshTypes and RefreshType.HISTORY.binary == RefreshType.HISTORY.binary) {
             webSocketDispatcher.dispatch(
@@ -76,6 +85,28 @@ class PipelineWebSocketListener @Autowired constructor(
                     userId = event.userId
                 )
             )
+        }
+
+        if (event.refreshTypes and RefreshType.RECORD.binary == RefreshType.RECORD.binary) {
+            event.executeCount?.let { executeCount ->
+                webSocketDispatcher.dispatch(
+                    // #8955 增加对没有执行次数的默认页面的重复推送
+                    pipelineWebsocketService.buildRecordMessage(
+                        buildId = event.buildId,
+                        projectId = event.projectId,
+                        pipelineId = event.pipelineId,
+                        userId = event.userId,
+                        executeCount = executeCount
+                    ),
+                    pipelineWebsocketService.buildRecordMessage(
+                        buildId = event.buildId,
+                        projectId = event.projectId,
+                        pipelineId = event.pipelineId,
+                        userId = event.userId,
+                        executeCount = null
+                    )
+                )
+            }
         }
     }
 }

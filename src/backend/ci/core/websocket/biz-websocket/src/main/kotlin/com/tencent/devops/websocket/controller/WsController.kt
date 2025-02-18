@@ -42,22 +42,25 @@ class WsController @Autowired constructor(
 
     @MessageMapping("/changePage")
     fun changePage(changePage: ChangePageDTO) {
-        websocketService.changePage(
-            userId = changePage.userId,
-            sessionId = changePage.sessionId,
-            newPage = changePage.page,
-            projectId = changePage.projectId,
-            needCheckProject = changePage.showProjectList
-        )
+        websocketService.changePage(changePage)
     }
 
     @MessageMapping("/loginOut")
     fun loginOut(loginOutDTO: LoginOutDTO) {
-        websocketService.loginOut(loginOutDTO.userId, loginOutDTO.sessionId, loginOutDTO.page, loginOutDTO.transferData)
+        websocketService.loginOut(
+            userId = loginOutDTO.userId,
+            sessionId = loginOutDTO.sessionId,
+            oldPage = loginOutDTO.page,
+            transferData = loginOutDTO.transferData
+        )
     }
 
     @MessageMapping("/clearUserSession")
     fun clearUserSession(clearUserDTO: ClearUserDTO) {
-        websocketService.clearUserSession(clearUserDTO.userId, clearUserDTO.sessionId, clearUserDTO.transferData)
+        websocketService.clearUserSession(
+            userId = clearUserDTO.userId,
+            sessionId = clearUserDTO.sessionId,
+            transferData = clearUserDTO.transferData
+        )
     }
 }

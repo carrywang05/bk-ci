@@ -30,22 +30,40 @@ package com.tencent.devops.common.pipeline.option
 import com.tencent.devops.common.pipeline.NameAndValue
 import com.tencent.devops.common.pipeline.enums.DependOnType
 import com.tencent.devops.common.pipeline.enums.JobRunCondition
+import io.swagger.v3.oas.annotations.media.Schema
 
 /**
  * Job流程控制
  * @version 1.0
  */
+@Schema(title = "job流程控制模型")
 data class JobControlOption(
+    @get:Schema(title = "是否启用Job", required = false)
     val enable: Boolean = true, // 是否启用Job
-    val prepareTimeout: Int? = 10, // Job准备环境的超时时间 分钟Minutes
-    val timeout: Int? = 900, // Job执行的超时时间 分钟Minutes
+    @get:Schema(title = "Job准备环境的超时时间 分钟Minutes", required = false)
+    val prepareTimeout: Int? = null, // Job准备环境的超时时间 分钟Minutes
+    @get:Schema(title = "ob执行的超时时间 分钟Minutes", required = false)
+    var timeout: Int? = 900, // Job执行的超时时间 分钟Minutes
+    @get:Schema(title = "新的Job执行的超时时间，支持变量 分钟Minutes，出错则取timeout的值", required = false)
+    var timeoutVar: String? = null, // Job执行的超时时间 分钟Minutes
+    @get:Schema(title = "运行条件", required = false)
     val runCondition: JobRunCondition = JobRunCondition.STAGE_RUNNING, // 运行条件
+    @get:Schema(title = "自定义变量", required = false)
     val customVariables: List<NameAndValue>? = emptyList(), // 自定义变量
+    @get:Schema(title = "自定义条件", required = false)
     val customCondition: String? = null, // 自定义条件
-    // job依赖
+    @get:Schema(title = "job依赖", required = false) // job依赖
     val dependOnType: DependOnType? = null,
+    @get:Schema(title = "需要过滤不存在的job，定义为var类型", required = false)
     var dependOnId: List<String>? = null, // 需要过滤不存在的job，定义为var类型
+    @get:Schema(title = "job依赖名称", required = false)
     val dependOnName: String? = null,
+    @get:Schema(title = "containerId与jobId映射，depend on运行时使用的是containerId", required = false)
     var dependOnContainerId2JobIds: Map<String, String>? = null, // containerId与jobId映射，depend on运行时使用的是containerId
-    val continueWhenFailed: Boolean? = false // 失败继续
+    @get:Schema(title = "是否失败继续", required = false)
+    val continueWhenFailed: Boolean? = false, // 失败继续
+    @get:Schema(title = "第三方构建机集群-单节点并发限制")
+    val singleNodeConcurrency: Int? = null,
+    @get:Schema(title = "第三方构建机集群-所有节点并发限制")
+    val allNodeConcurrency: Int? = null
 )

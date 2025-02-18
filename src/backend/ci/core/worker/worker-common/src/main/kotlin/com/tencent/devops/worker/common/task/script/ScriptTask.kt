@@ -27,9 +27,12 @@
 
 package com.tencent.devops.worker.common.task.script
 
+import com.tencent.bkrepo.repository.pojo.token.TokenType
 import com.tencent.devops.common.api.exception.TaskExecuteException
 import com.tencent.devops.common.api.pojo.ErrorCode
+import com.tencent.devops.common.api.pojo.ErrorCode.USER_SCRIPT_TASK_FAIL
 import com.tencent.devops.common.api.pojo.ErrorType
+import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.pipeline.pojo.element.agent.LinuxScriptElement
 import com.tencent.devops.common.pipeline.pojo.element.agent.WindowsScriptElement
 import com.tencent.devops.process.pojo.BuildTask
@@ -37,25 +40,29 @@ import com.tencent.devops.process.pojo.BuildVariables
 import com.tencent.devops.process.utils.PIPELINE_START_USER_ID
 import com.tencent.devops.store.pojo.app.BuildEnv
 import com.tencent.devops.worker.common.api.ApiFactory
-import com.tencent.devops.worker.common.api.archive.pojo.TokenType
+import com.tencent.devops.worker.common.api.archive.ArchiveSDKApi
 import com.tencent.devops.worker.common.api.quality.QualityGatewaySDKApi
+import com.tencent.devops.worker.common.constants.WorkerMessageCode.BK_NO_FILES_TO_ARCHIVE
+import com.tencent.devops.worker.common.constants.WorkerMessageCode.SCRIPT_EXECUTION_FAIL
 import com.tencent.devops.worker.common.env.AgentEnv
 import com.tencent.devops.worker.common.logger.LoggerService
-import com.tencent.devops.worker.common.service.RepoServiceFactory
 import com.tencent.devops.worker.common.task.ITask
 import com.tencent.devops.worker.common.task.script.bat.WindowsScriptTask
 import com.tencent.devops.worker.common.utils.ArchiveUtils
+import com.tencent.devops.worker.common.utils.CredentialUtils.parseCredentialValue
 import com.tencent.devops.worker.common.utils.TaskUtil
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URLDecoder
-import org.slf4j.LoggerFactory
 
 /**
  * 构建脚本任务
  */
+@Suppress("LongMethod", "ComplexMethod")
 open class ScriptTask : ITask() {
 
     private val gatewayResourceApi = ApiFactory.create(QualityGatewaySDKApi::class)
+    private val archiveApi = ApiFactory.create(ArchiveSDKApi::class)
 
     override fun execute(buildTask: BuildTask, buildVariables: BuildVariables, workspace: File) {
         val taskParams = buildTask.params ?: mapOf()
@@ -71,46 +78,60 @@ open class ScriptTask : ITask() {
         val continueNoneZero = taskParams["continueNoneZero"] ?: "false"
         // 如果脚本执行失败之后可以选择归档这个问题
         val archiveFileIfExecFail = taskParams["archiveFile"]
-        val script = URLDecoder.decode(taskParams["script"]
-            ?: throw TaskExecuteException(
-                errorMsg = "Empty build script content",
-                errorType = ErrorType.USER,
-                errorCode = ErrorCode.USER_INPUT_INVAILD
-            ), "UTF-8").replace("\r", "")
+        val enableArchiveFile = taskParams["enableArchiveFile"]?.toBooleanStrictOrNull()
+        val script = URLDecoder.decode(
+            taskParams["script"]
+                ?: throw TaskExecuteException(
+                    errorMsg = "Empty build script content",
+                    errorType = ErrorType.USER,
+                    errorCode = ErrorCode.USER_INPUT_INVAILD
+                ),
+            "UTF-8"
+        ).replace("\r", "")
         logger.info("Start to execute the script task($scriptType) ($script)")
         val command = CommandFactory.create(scriptType)
         val buildId = buildVariables.buildId
-        val runtimeVariables = buildVariables.variables
+        val runtimeVariables = buildVariables.variables.plus(buildTask.buildVariable ?: emptyMap()).let { vars ->
+            if (buildVariables.pipelineAsCodeSettings?.enable == true) {
+                vars.map {
+                    it.key to it.value.parseCredentialValue(buildTask.buildVariable)
+                }.toMap()
+            } else vars
+        }
         val projectId = buildVariables.projectId
 
         ScriptEnvUtils.cleanEnv(buildId, workspace)
         ScriptEnvUtils.cleanContext(buildId, workspace)
 
-        val variables = if (buildTask.buildVariable == null) {
-            runtimeVariables
-        } else {
-            runtimeVariables.plus(buildTask.buildVariable!!)
-        }
-
         try {
             command.execute(
                 buildId = buildId,
-                elementId = buildTask.elementId,
+                jobId = buildVariables.jobId,
+                stepId = buildTask.stepId,
                 script = script,
                 taskParam = taskParams,
-                runtimeVariables = variables.plus(TaskUtil.getTaskEnvVariables(buildVariables, buildTask.taskId)),
+                runtimeVariables = runtimeVariables.plus(
+                    TaskUtil.getTaskEnvVariables(buildVariables, buildTask.taskId)
+                ),
                 projectId = projectId,
                 dir = workspace,
                 buildEnvs = takeBuildEnvs(buildTask, buildVariables),
                 continueNoneZero = continueNoneZero.toBoolean(),
                 errorMessage = "Fail to run the plugin",
-                charsetType = charsetType
+                charsetType = charsetType,
+                taskId = buildTask.taskId
             )
         } catch (ignore: Throwable) {
             logger.warn("Fail to run the script task", ignore)
-            if (!archiveFileIfExecFail.isNullOrBlank()) {
-                LoggerService.addErrorLine("脚本执行失败， 归档${archiveFileIfExecFail}文件")
-                val token = RepoServiceFactory.getInstance().getRepoToken(
+            if (enableArchiveFile == true && !archiveFileIfExecFail.isNullOrBlank()) {
+                LoggerService.addErrorLine(
+                    MessageUtil.getMessageByLocale(
+                        SCRIPT_EXECUTION_FAIL,
+                        AgentEnv.getLocaleLanguage(),
+                        arrayOf(archiveFileIfExecFail)
+                    )
+                )
+                val token = archiveApi.getRepoToken(
                     userId = buildVariables.variables[PIPELINE_START_USER_ID] ?: "",
                     projectId = buildVariables.projectId,
                     repoName = "pipeline",
@@ -125,23 +146,39 @@ open class ScriptTask : ITask() {
                     token = token
                 )
                 if (count == 0) {
-                    LoggerService.addErrorLine("脚本执行失败之后没有匹配到任何待归档文件")
+                    LoggerService.addErrorLine(
+                        MessageUtil.getMessageByLocale(BK_NO_FILES_TO_ARCHIVE, AgentEnv.getLocaleLanguage())
+                    )
                 }
             }
+            val errorMsg = (
+                if (ignore is TaskExecuteException) {
+                    ignore.errorMsg
+                } else ""
+                ) + MessageUtil.getMessageByLocale(
+                messageCode = "$USER_SCRIPT_TASK_FAIL",
+                language = AgentEnv.getLocaleLanguage(),
+                checkUrlDecoder = true
+            )
+
             throw TaskExecuteException(
-                errorMsg = "脚本执行失败",
+                errorMsg = errorMsg,
                 errorType = ErrorType.USER,
-                errorCode = ErrorCode.USER_TASK_OPERATE_FAIL
+                errorCode = ErrorCode.USER_SCRIPT_TASK_FAIL
             )
         } finally {
-            // 成功失败都写入环境变量
+            // 成功失败都写入全局变量
             addEnv(ScriptEnvUtils.getEnv(buildId, workspace))
             addEnv(ScriptEnvUtils.getContext(buildId, workspace))
-            addEnv(mapOf("jobs.${buildVariables.containerId}.os" to AgentEnv.getOS().name))
-            ScriptEnvUtils.cleanWhenEnd(buildId, workspace)
+
+            // 增加操作系统类型的输出
+            buildVariables.jobId?.let { addEnv(mapOf("jobs.$it.os" to AgentEnv.getOS().name)) }
 
             // 设置质量红线指标信息
-            setGatewayValue(workspace)
+            setGatewayValue(workspace, buildTask.taskId ?: "", buildTask.elementName ?: "")
+
+            // 清理所有执行的中间输出文件
+            ScriptEnvUtils.cleanWhenEnd(buildId, workspace)
         }
     }
 
@@ -150,7 +187,7 @@ open class ScriptTask : ITask() {
         buildVariables: BuildVariables
     ): List<BuildEnv> = buildVariables.buildEnvs
 
-    private fun setGatewayValue(workspace: File) {
+    private fun setGatewayValue(workspace: File, taskId: String, taskName: String) {
         try {
             val gatewayFile = File(workspace, ScriptEnvUtils.getQualityGatewayEnvFile())
             if (!gatewayFile.exists()) return
@@ -173,7 +210,7 @@ open class ScriptTask : ITask() {
                 LinuxScriptElement.classType
             }
             LoggerService.addNormalLine("save gateway value($elementType): $data")
-            gatewayResourceApi.saveScriptHisMetadata(elementType, data)
+            gatewayResourceApi.saveScriptHisMetadata(elementType, taskId, taskName, data)
             gatewayFile.delete()
         } catch (ignore: Exception) {
             LoggerService.addErrorLine("save gateway value fail: ${ignore.message}")

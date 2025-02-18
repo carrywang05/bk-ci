@@ -28,15 +28,17 @@
 package com.tencent.devops.quality.dao.v2
 
 import com.tencent.devops.common.api.util.PageUtil
+import com.tencent.devops.common.db.utils.skipCheck
 import com.tencent.devops.model.quality.tables.TQualityMetadata
 import com.tencent.devops.model.quality.tables.records.TQualityMetadataRecord
 import com.tencent.devops.quality.api.v2.pojo.op.QualityMetaData
+import com.tencent.devops.quality.pojo.po.QualityMetadataPO
+import java.time.LocalDateTime
 import org.jooq.DSLContext
 import org.jooq.Record1
 import org.jooq.Record2
 import org.jooq.Result
 import org.springframework.stereotype.Repository
-import java.time.LocalDateTime
 
 @Repository@Suppress("ALL")
 class QualityMetadataDao {
@@ -64,6 +66,7 @@ class QualityMetadataDao {
         return with(TQualityMetadata.T_QUALITY_METADATA) {
             dslContext.selectFrom(this)
                 .where(ELEMENT_TYPE.eq(elementType))
+                .skipCheck()
                 .fetch()
         }
     }
@@ -208,6 +211,22 @@ class QualityMetadataDao {
             dslContext.deleteFrom(this)
                 .where(ID.`in`(ids))
                 .execute()
+        }
+    }
+
+    fun batchCrateQualityMetadata(dslContext: DSLContext, qualityMetadataPOs: List<QualityMetadataPO>) {
+        with(TQualityMetadata.T_QUALITY_METADATA) {
+            dslContext.batch(
+                qualityMetadataPOs.map { qualityMetadataPO ->
+                    dslContext.insertInto(this)
+                        .set(dslContext.newRecord(this, qualityMetadataPO))
+                        .onDuplicateKeyUpdate()
+                        .set(DATA_NAME, qualityMetadataPO.dataName)
+                        .set(ELEMENT_NAME, qualityMetadataPO.elementName)
+                        .set(DESC, qualityMetadataPO.desc)
+                        .set(UPDATE_TIME, LocalDateTime.now())
+                }
+            ).execute()
         }
     }
 }

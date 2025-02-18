@@ -27,15 +27,18 @@
 
 package com.tencent.devops.process.api.template
 
+import com.tencent.bk.audit.annotations.AuditEntry
 import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.auth.api.ActionId
 import com.tencent.devops.common.web.RestResource
-import com.tencent.devops.process.service.template.TemplateFacadeService
 import com.tencent.devops.process.pojo.PipelineId
+import com.tencent.devops.process.pojo.enums.TemplateSortTypeEnum
 import com.tencent.devops.process.pojo.template.TemplateInstanceCreate
 import com.tencent.devops.process.pojo.template.TemplateInstancePage
 import com.tencent.devops.process.pojo.template.TemplateInstanceParams
-import com.tencent.devops.process.pojo.template.TemplateOperationRet
 import com.tencent.devops.process.pojo.template.TemplateInstanceUpdate
+import com.tencent.devops.process.pojo.template.TemplateOperationRet
+import com.tencent.devops.process.service.template.TemplateFacadeService
 import org.springframework.beans.factory.annotation.Autowired
 
 @Suppress("ALL")
@@ -44,6 +47,7 @@ class ServiceTemplateInstanceResourceImpl @Autowired constructor(
     private val templateFacadeService: TemplateFacadeService
 ) : ServiceTemplateInstanceResource {
 
+    @AuditEntry(actionId = ActionId.PIPELINE_CREATE)
     override fun createTemplateInstances(
         userId: String,
         projectId: String,
@@ -63,7 +67,7 @@ class ServiceTemplateInstanceResourceImpl @Autowired constructor(
     }
 
     override fun countTemplateInstance(projectId: String, templateIds: Collection<String>): Result<Int> {
-        return Result(templateFacadeService.serviceCountTemplateInstances(projectId, templateIds))
+        return Result(data = templateFacadeService.serviceCountTemplateInstances(projectId, templateIds))
     }
 
     override fun countTemplateInstanceDetail(
@@ -73,6 +77,7 @@ class ServiceTemplateInstanceResourceImpl @Autowired constructor(
         return Result(templateFacadeService.serviceCountTemplateInstancesDetail(projectId, templateIds))
     }
 
+    @AuditEntry(actionId = ActionId.PIPELINE_EDIT)
     override fun updateTemplate(
         userId: String,
         projectId: String,
@@ -91,21 +96,46 @@ class ServiceTemplateInstanceResourceImpl @Autowired constructor(
         )
     }
 
+    @AuditEntry(actionId = ActionId.PIPELINE_EDIT)
+    override fun updateTemplate(
+        userId: String,
+        projectId: String,
+        templateId: String,
+        versionName: String,
+        useTemplateSettings: Boolean,
+        instances: List<TemplateInstanceUpdate>
+    ): TemplateOperationRet {
+        return templateFacadeService.updateTemplateInstances(
+            projectId = projectId,
+            userId = userId,
+            templateId = templateId,
+            versionName = versionName,
+            useTemplateSettings = useTemplateSettings,
+            instances = instances
+        )
+    }
+
     override fun listTemplate(
         userId: String,
         projectId: String,
         templateId: String,
-        page: Int?,
-        pageSize: Int?,
-        searchKey: String?
+        page: Int,
+        pageSize: Int,
+        searchKey: String?,
+        sortType: TemplateSortTypeEnum?,
+        desc: Boolean?
     ): Result<TemplateInstancePage> {
-        return Result(templateFacadeService.listTemplateInstancesInPage(
-            projectId = projectId,
-            userId = userId,
-            templateId = templateId,
-            page = page,
-            pageSize = checkPageSize(pageSize),
-            searchKey = searchKey)
+        return Result(
+            templateFacadeService.listTemplateInstancesInPage(
+                projectId = projectId,
+                userId = userId,
+                templateId = templateId,
+                page = page,
+                pageSize = checkPageSize(pageSize),
+                searchKey = searchKey,
+                sortType = sortType,
+                desc = desc
+            )
         )
     }
 
@@ -116,14 +146,16 @@ class ServiceTemplateInstanceResourceImpl @Autowired constructor(
         version: Long,
         pipelineIds: List<PipelineId>
     ): Result<Map<String, TemplateInstanceParams>> {
-        return Result(templateFacadeService.listTemplateInstancesParams(
-            userId = userId,
-            projectId = projectId,
-            templateId = templateId,
-            version = version,
-            pipelineIds = pipelineIds.map { it.id }.toSet()
-        ))
+        return Result(
+            templateFacadeService.listTemplateInstancesParams(
+                userId = userId,
+                projectId = projectId,
+                templateId = templateId,
+                version = version,
+                pipelineIds = pipelineIds.map { it.id }.toSet()
+            )
+        )
     }
 
-    private fun checkPageSize(pageSize: Int?) = if (pageSize != null && pageSize > 30) 30 else pageSize
+    private fun checkPageSize(pageSize: Int) = if (pageSize > 30) 30 else pageSize
 }

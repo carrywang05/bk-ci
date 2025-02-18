@@ -27,20 +27,23 @@
 
 package com.tencent.devops.common.event.pojo.pipeline
 
-import com.tencent.devops.common.event.enums.ActionType
 import com.tencent.devops.common.service.trace.TraceTag
+import com.tencent.devops.common.event.enums.ActionType
+import com.tencent.devops.common.event.pojo.IEvent
 import org.slf4j.MDC
 
 /**
  * 流水线事件
  */
+@Suppress("LongParameterList")
 open class IPipelineEvent(
     open var actionType: ActionType,
     open val source: String,
     open val projectId: String,
     open val pipelineId: String,
     open val userId: String,
-    open var delayMills: Int,
-    open var retryTime: Int = 1,
-    open var traceId: String? = MDC.get(TraceTag.BIZID)
-)
+    override var delayMills: Int,
+    override var retryTime: Int = 1,
+    open var traceId: String? = MDC.get(TraceTag.BIZID),
+    open val routeKeySuffix: String? = null
+) : IEvent(delayMills, retryTime)

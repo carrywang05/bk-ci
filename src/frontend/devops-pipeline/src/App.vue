@@ -1,17 +1,21 @@
 <template>
-    <div id="app" class="biz-app">
+    <div
+        id="app"
+        class="biz-app"
+    >
         <main class="app-container">
             <router-view></router-view>
         </main>
         <portal-target name="atom-selector-popup"></portal-target>
+        <portal-target name="yaml-preview-popup"></portal-target>
     </div>
 </template>
 
 <script>
-    import { mapState } from 'vuex'
+    import { mapMutations, mapState } from 'vuex'
 
     export default {
-        name: 'app',
+        name: 'App',
         data () {
             return {
                 stayCurrentPage: ['atomDebug', '']
@@ -24,6 +28,7 @@
         },
         watch: {
             '$route.fullPath' (val) { // 同步地址到蓝盾
+                console.log(val, 'fullPath')
                 this.$syncUrl(val.replace(/^\/pipeline\//, '/'))
             },
             fetchError (error) {
@@ -31,14 +36,15 @@
                     message: error.message,
                     theme: 'error'
                 })
-                if ((error.code === 404 || error.httpStatus === 404) && this.$route.name !== 'pipelinesList') {
+                if ((error.code === 404 || error.httpStatus === 404) && this.$route.name !== 'PipelineManageList') {
                     this.$router.push({
-                        name: 'pipelinesList'
+                        name: 'PipelineManageList'
                     })
                 }
             }
         },
         created () {
+            console.log('debug')
             window.globalVue.$on('change::$currentProjectId', data => { // 蓝盾选择项目时切换
                 if (this.$route.params.projectId !== data.currentProjectId) {
                     if (this.stayCurrentPage.find(item => item === this.$route.name)) {
@@ -49,28 +55,36 @@
                 }
             })
 
-            // window.globalVue.$on('change::$userInfo', data => { // 获取人员信息
-            //     console.log('syncUserInfo', data)
-            // })
             window.globalVue.$on('order::backHome', data => { // 蓝盾选择项目时切换
                 this.goHome()
             })
 
-            window.globalVue.$on('change::$projectList', data => { // 获取项目列表
-                // this.$store.dispatch('setProjectList', this.$projectList)
-                // this.$store.dispatch('getProjectList')
-            })
-
             window.globalVue.$on('order::syncLocale', locale => {
-                this.$setLocale(locale)
+                this.$setLocale(locale, false)
             })
         },
         methods: {
+            ...mapMutations('pipelines', [
+                'updatePipelineActionState'
+            ]),
             goHome (projectId) {
                 const params = projectId ? { projectId } : {}
+                this.updatePipelineActionState({
+                    activePipeline: null,
+                    isConfirmShow: false,
+                    confirmType: '',
+                    activePipelineList: [],
+                    isSaveAsTemplateShow: false,
+                    isCopyDialogShow: false,
+                    addToDialogShow: false,
+                    isDisableDialogShow: false
+                })
                 this.$router.replace({
-                    name: 'pipelinesList',
-                    params
+                    name: 'PipelineManageList',
+                    params: {
+                        ...this.$route.params,
+                        ...params
+                    }
                 })
             },
             reflashCurrentPage (projectId) {
@@ -127,11 +141,6 @@
     .app-content {
         flex: 1;
         background: #fafbfd;
-    }
-    .text-link {
-        font-size: 14px;
-        cursor: pointer;
-        color: $primaryColor;
     }
 
     .bkdevops-radio {

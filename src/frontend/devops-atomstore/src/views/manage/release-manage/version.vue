@@ -1,7 +1,11 @@
 <template>
     <article class="release-version">
-        <main v-bkloading="{ isLoading }" class="version-main">
-            <component :is="`${$route.params.type}Version`"
+        <main
+            v-bkloading="{ isLoading }"
+            class="version-main"
+        >
+            <component
+                :is="`${$route.params.type}Version`"
                 v-if="!isLoading"
                 class="release-show"
                 :detail="detail"
@@ -39,7 +43,7 @@
 
         computed: {
             ...mapGetters('store', {
-                'detail': 'getDetail'
+                detail: 'getDetail'
             })
         },
 
@@ -115,7 +119,7 @@
         .version-main {
             height: 100%;
         }
-        /deep/ .show-version {
+        ::v-deep .show-version {
             .version-button {
                 margin-bottom: 3.2vh;
             }

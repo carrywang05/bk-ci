@@ -27,17 +27,20 @@
 
 package com.tencent.devops.scm.code
 
-import com.tencent.devops.common.api.constant.RepositoryMessageCode
+import com.tencent.devops.common.api.constant.CommonMessageCode
 import com.tencent.devops.common.api.enums.ScmType
-import com.tencent.devops.common.service.utils.MessageCodeUtil
+import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.scm.IScm
 import com.tencent.devops.scm.code.git.CodeGitCredentialSetter
 import com.tencent.devops.scm.code.git.api.GitApi
 import com.tencent.devops.scm.config.GitConfig
 import com.tencent.devops.scm.exception.ScmException
+import com.tencent.devops.scm.pojo.GitCommit
 import com.tencent.devops.scm.pojo.GitMrChangeInfo
 import com.tencent.devops.scm.pojo.GitMrInfo
 import com.tencent.devops.scm.pojo.GitMrReviewInfo
+import com.tencent.devops.scm.pojo.GitProjectInfo
+import com.tencent.devops.scm.pojo.LoginSession
 import com.tencent.devops.scm.pojo.RevisionInfo
 import com.tencent.devops.scm.utils.code.git.GitUtils
 import com.tencent.devops.scm.utils.code.git.GitUtils.urlEncode
@@ -54,6 +57,7 @@ class CodeTGitScmImpl constructor(
     private var passPhrase: String?,
     private val token: String,
     private val gitConfig: GitConfig,
+    private val gitApi: GitApi,
     private val event: String? = null
 ) : IScm {
     private val apiUrl = GitUtils.getGitApiUrl(apiUrl = gitConfig.tGitApiUrl, repoUrl = url)
@@ -69,16 +73,19 @@ class CodeTGitScmImpl constructor(
         return RevisionInfo(
             revision = gitBranch.commit.id,
             updatedMessage = gitBranch.commit.message,
-            branchName = branch
+            branchName = branch,
+            authorName = gitBranch.commit.authorName
         )
     }
 
-    override fun getBranches(search: String?) =
+    override fun getBranches(search: String?, page: Int, pageSize: Int): List<String> =
         gitApi.listBranches(
             host = apiUrl,
             token = token,
             projectName = projectName,
-            search = search
+            search = search,
+            page = page,
+            pageSize = pageSize
         )
 
     override fun getTags(search: String?) =
@@ -92,7 +99,9 @@ class CodeTGitScmImpl constructor(
     override fun checkTokenAndPrivateKey() {
         if (privateKey == null) {
             throw ScmException(
-                MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.SERCRT_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.SERCRT_EMPTY
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -102,7 +111,10 @@ class CodeTGitScmImpl constructor(
         } catch (ignored: Throwable) {
             logger.warn("Fail to list all branches", ignored)
             throw ScmException(
-                ignored.message ?: MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.TGIT_TOKEN_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.THIRD_PARTY_SERVICE_OPERATION_FAILED,
+                    params = arrayOf(ScmType.CODE_TGIT.name, ignored.message ?: "")
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -116,7 +128,9 @@ class CodeTGitScmImpl constructor(
         } catch (ignored: Throwable) {
             logger.warn("Fail to check the private key of git", ignored)
             throw ScmException(
-                ignored.message ?: MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.TGIT_SECRET_WRONG),
+                GitUtils.matchExceptionCode(ignored.message ?: "")?.let {
+                    I18nUtil.getCodeLanMessage(it)
+                } ?: ignored.message ?: I18nUtil.getCodeLanMessage(CommonMessageCode.TGIT_SECRET_WRONG),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -125,7 +139,9 @@ class CodeTGitScmImpl constructor(
     override fun checkTokenAndUsername() {
         if (privateKey == null) {
             throw ScmException(
-                MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.PWD_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.PWD_EMPTY
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -136,7 +152,10 @@ class CodeTGitScmImpl constructor(
         } catch (ignored: Throwable) {
             logger.warn("Fail to list all branches", ignored)
             throw ScmException(
-                MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.TGIT_TOKEN_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.THIRD_PARTY_SERVICE_OPERATION_FAILED,
+                    params = arrayOf(ScmType.CODE_TGIT.name, ignored.message ?: "")
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -149,7 +168,11 @@ class CodeTGitScmImpl constructor(
         } catch (ignored: Throwable) {
             logger.warn("Fail to check the username and password of git", ignored)
             throw ScmException(
-                ignored.message ?: MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.TGIT_LOGIN_FAIL),
+                GitUtils.matchExceptionCode(ignored.message ?: "")?.let {
+                    I18nUtil.getCodeLanMessage(it)
+                } ?: ignored.message ?: I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.TGIT_LOGIN_FAIL
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -158,21 +181,26 @@ class CodeTGitScmImpl constructor(
     override fun addWebHook(hookUrl: String) {
         if (token.isEmpty()) {
             throw ScmException(
-                MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.GIT_TOKEN_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.GIT_TOKEN_EMPTY
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
         if (hookUrl.isEmpty()) {
             throw ScmException(
-                MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.GIT_HOOK_URL_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.GIT_HOOK_URL_EMPTY
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
         try {
             gitApi.addWebhook(apiUrl, token, projectName, hookUrl, event, gitConfig.tGitHookSecret)
         } catch (ignored: Throwable) {
+            logger.warn("Fail to add webhook of git", ignored)
             throw ScmException(
-                ignored.message ?: MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.GIT_TOKEN_FAIL),
+                ignored.message ?: I18nUtil.getCodeLanMessage(CommonMessageCode.GIT_TOKEN_FAIL),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -184,11 +212,14 @@ class CodeTGitScmImpl constructor(
         targetUrl: String,
         context: String,
         description: String,
-        block: Boolean
+        block: Boolean,
+        targetBranch: List<String>?
     ) {
         if (token.isEmpty()) {
             throw ScmException(
-                MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.GIT_TOKEN_EMPTY),
+                I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.GIT_TOKEN_EMPTY
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
@@ -202,17 +233,23 @@ class CodeTGitScmImpl constructor(
                 detailUrl = targetUrl,
                 context = context,
                 description = description,
-                block = block
+                block = block,
+                targetBranch = targetBranch
             )
         } catch (ignored: Throwable) {
+            logger.warn("Fail to add commit check of git", ignored)
             throw ScmException(
-                ignored.message ?: MessageCodeUtil.getCodeLanMessage(RepositoryMessageCode.GIT_TOKEN_FAIL),
+                ignored.message ?: I18nUtil.getCodeLanMessage(
+                    CommonMessageCode.GIT_TOKEN_FAIL
+                ),
                 ScmType.CODE_TGIT.name
             )
         }
     }
 
-    override fun addMRComment(mrId: Long, comment: String) = Unit
+    override fun addMRComment(mrId: Long, comment: String) {
+        gitApi.addMRComment(apiUrl, token, projectName, mrId, comment)
+    }
 
     override fun lock(repoName: String, applicant: String, subpath: String) {
         logger.info("Git can not lock")
@@ -249,8 +286,37 @@ class CodeTGitScmImpl constructor(
         )
     }
 
+    override fun getMrCommitList(mrId: Long, page: Int, size: Int): List<GitCommit> {
+        val url = "projects/${urlEncode(projectName)}/merge_request/$mrId/commits"
+        return gitApi.getMrCommitList(
+            host = apiUrl,
+            token = token,
+            url = url,
+            page = page,
+            size = size
+        )
+    }
+
+    override fun getProjectInfo(projectName: String): GitProjectInfo {
+        val url = "projects/${urlEncode(projectName)}"
+        return gitApi.getProjectInfo(
+            host = apiUrl,
+            token = token,
+            url = url
+        )
+    }
+
+    override fun getLoginSession(): LoginSession? {
+        val url = "session"
+        return gitApi.getGitSession(
+            host = apiUrl,
+            url = url,
+            username = privateKey!!,
+            password = passPhrase!!
+        )
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(CodeTGitScmImpl::class.java)
-        private val gitApi = GitApi()
     }
 }

@@ -29,16 +29,18 @@ package com.tencent.devops.repository.pojo
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import io.swagger.annotations.ApiModel
+import com.tencent.devops.common.api.enums.ScmType
+import io.swagger.v3.oas.annotations.media.Schema
 
-@ApiModel("代码库模型-多态基类")
+@Schema(title = "代码库模型-多态基类")
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@type")
 @JsonSubTypes(
     JsonSubTypes.Type(value = CodeSvnRepository::class, name = CodeSvnRepository.classType),
     JsonSubTypes.Type(value = CodeGitRepository::class, name = CodeGitRepository.classType),
     JsonSubTypes.Type(value = CodeGitlabRepository::class, name = CodeGitlabRepository.classType),
     JsonSubTypes.Type(value = GithubRepository::class, name = GithubRepository.classType),
-    JsonSubTypes.Type(value = CodeTGitRepository::class, name = CodeTGitRepository.classType)
+    JsonSubTypes.Type(value = CodeTGitRepository::class, name = CodeTGitRepository.classType),
+    JsonSubTypes.Type(value = CodeP4Repository::class, name = CodeP4Repository.classType)
 )
 interface Repository {
     val aliasName: String
@@ -48,10 +50,16 @@ interface Repository {
     var userName: String
     val projectId: String?
     val repoHashId: String?
+    val enablePac: Boolean?
+    val yamlSyncStatus: String?
 
     fun isLegal() = url.startsWith(getStartPrefix())
 
     fun getStartPrefix(): String
 
     fun getFormatURL() = url
+
+    fun getScmType(): ScmType
+
+    fun getExternalId(): String = projectName
 }

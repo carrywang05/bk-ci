@@ -1,8 +1,11 @@
 <template>
     <div class="quality-overview-wrapper">
         <div class="inner-header">
-            <div class="title">总览</div>
-            <a class="job-guide" @click="linkToDocs">了解更多质量红线<i class="devops-icon icon-tiaozhuan"></i></a>
+            <div class="title">{{ $t('quality.总览') }}</div>
+            <a
+                class="job-guide"
+                @click="linkToDocs"
+            >{{ $t('quality.了解更多质量红线') }}<i class="devops-icon icon-tiaozhuan"></i></a>
         </div>
 
         <section
@@ -10,53 +13,77 @@
             v-bkloading="{
                 isLoading: loading.isLoading,
                 title: loading.title
-            }">
-            <image-empty v-if="showContent && isEmptyRule"
+            }"
+        >
+            <image-empty
+                v-if="showContent && isEmptyRule"
                 :title="emptyInfo.title"
                 :desc="emptyInfo.desc"
-                :btns="emptyInfo.btns">
+                :btns="emptyInfo.btns"
+            >
             </image-empty>
-            <div class="quality-overview-content" :class="{ &quot;overflow-content&quot;: isOverflow }" v-if="showContent && !isEmptyRule">
+            <div
+                class="quality-overview-content"
+                :class="{ 'overflow-content': isOverflow }"
+                v-if="showContent && !isEmptyRule"
+            >
                 <div class="overview-index-list">
-                    <div class="indicator-card" :class="{ 'jumpable-item': index === 0 || index === 2 }"
-                        v-for="(entry, index) in indicatorList" :key="index"
-                        @click="toLink(entry.label)">
+                    <div
+                        class="indicator-card"
+                        :class="{ 'jumpable-item': index === 0 || index === 2 }"
+                        v-for="(entry, index) in indicatorList"
+                        :key="index"
+                        @click="toLink(entry.label)"
+                    >
                         <div class="card-info-title">
-                            <i :class="{ &quot;devops-icon&quot;: true, [`icon-${entry.icon}`]: true }"></i>
+                            <i :class="{ 'devops-icon': true, [`icon-${entry.icon}`]: true }"></i>
                             <span class="title">{{ entry.name }}</span>
                         </div>
                         <div class="card-info-stastics">
                             <span class="total-count">{{ entry.value }}</span>
-                            <span v-if="entry.label === 'ruleCount' || entry.label === 'pipelineCount'">条</span>
-                            <span v-if="entry.label === 'indicatoCount'">个</span>
-                            <span v-if="entry.label === 'interceptCount'">次</span>
+                            <span v-if="entry.label === 'ruleCount' || entry.label === 'pipelineCount'">{{ $t('quality.条') }}</span>
+                            <span v-if="entry.label === 'indicatoCount'">{{ $t('quality.个') }}</span>
+                            <span v-if="entry.label === 'interceptCount'">{{ $t('quality.次') }}</span>
                         </div>
                     </div>
                 </div>
                 <div class="intercept-chart-wrapper">
                     <div class="intercept-item intercept-rank">
-                        <p class="chart-name">流水线拦截Top5</p>
-                        <chart class="chart-wrapper rankchart-wrapper"
-                            :options="processOptions('rank')"
-                            auto-resize>
+                        <p class="chart-name">{{ $t('quality.流水线拦截Top5') }}</p>
+                        <chart
+                            class="chart-wrapper rankchart-wrapper"
+                            :loading="loading.isLoading"
+                            :option="processOptions('rank')"
+                            autoresize
+                        >
                         </chart>
                     </div>
                     <div class="intercept-item intercept-trend">
-                        <p class="chart-name">生效流水线执行数/拦截数趋势</p>
-                        <chart class="chart-wrapper trend-chart-wrapper"
-                            :options="processOptions('trend')"
-                            auto-resize>
+                        <p class="chart-name">{{ $t('quality.生效流水线执行数/拦截数趋势') }}</p>
+                        <chart
+                            class="chart-wrapper trend-chart-wrapper"
+                            :option="processOptions('trend')"
+                            :loading="loading.isLoading"
+                            autoresize
+                        >
                         </chart>
                     </div>
                 </div>
                 <div class="intercept-record-wrapper">
                     <div class="record-list-nav">
-                        <p class="info-title">拦截历史</p>
+                        <p class="info-title">{{ $t('quality.拦截历史') }}</p>
                     </div>
-                    <div class="intercept-tips" v-if="interceptRecordList.length">
+                    <div
+                        class="intercept-tips"
+                        v-if="interceptRecordList.length"
+                    >
                         <i class="devops-icon icon-exclamation-circle"></i>
-                        <span class="intercept-count">仅展示最近10条。
-                            <span class="more-history" v-if="interceptRecordList.length" @click="toRouteLink('interceptHistory')">查看更多</span>
+                        <span class="intercept-count">{{ $t('quality.仅展示最近10条。') }}
+                            <span
+                                class="more-history"
+                                v-if="interceptRecordList.length"
+                                @click="toRouteLink('interceptHistory')"
+                            >{{ $t('quality.查看更多') }}</span>
                         </span>
                     </div>
                     <div class="record-list">
@@ -65,28 +92,52 @@
                             class="record-table"
                             :data="interceptRecordList"
                             :row-class-name="handleRowStyle"
-                            @row-click="handleRowClick">
-                            <bk-table-column label="流水线" prop="pipelineName">
+                            @row-click="handleRowClick"
+                        >
+                            <bk-table-column
+                                :label="$t('quality.流水线')"
+                                prop="pipelineName"
+                            >
                                 <template slot-scope="props">
-                                    <a class="item-times item-pipelinename" :title="props.row.pipelineName"
+                                    <a
+                                        class="item-times item-pipelinename"
+                                        :title="props.row.pipelineName"
                                         target="_blank"
                                         :href="`/console/pipeline/${projectId}/${props.row.pipelineId}/detail/${props.row.buildId}`"
                                     >{{ props.row.pipelineName }}</a>
                                 </template>
                             </bk-table-column>
-                            <bk-table-column label="红线规则" prop="ruleName">
+                            <bk-table-column
+                                :label="$t('quality.红线规则')"
+                                prop="ruleName"
+                            >
                                 <template slot-scope="props">
-                                    <span class="item-times" :title="props.row.ruleName" @click="toRouteLink('ruleList')">{{ props.row.ruleName }}</span>
+                                    <span
+                                        class="item-times"
+                                        :title="props.row.ruleName"
+                                        @click="toRouteLink('ruleList')"
+                                    >{{ props.row.ruleName }}</span>
                                 </template>
                             </bk-table-column>
-                            <bk-table-column label="拦截详情" prop="resultMsg" min-width="200" class-name="indicator-item">
+                            <bk-table-column
+                                :label="$t('quality.拦截详情')"
+                                prop="resultMsg"
+                                min-width="200"
+                                class-name="indicator-item"
+                            >
                                 <template slot-scope="props">
-                                    <div class="indicator-detail" :title="handleRemark(props.row.resultMsg)">
-                                        <span v-for="(col, key) in props.row.resultMsg" :key="key">
+                                    <div
+                                        class="indicator-detail"
+                                        :title="handleRemark(props.row.resultMsg)"
+                                    >
+                                        <span
+                                            v-for="(col, key) in props.row.resultMsg"
+                                            :key="key"
+                                        >
                                             <span>{{ col.indicatorName }}</span>
                                             <span>=</span>
                                             <span>{{ col.actualValue === undefined ? 'null' : col.actualValue }}</span>，
-                                            <span>期望
+                                            <span>{{ $t('quality.期望') }}
                                                 <span>{{ indexHandlerConf[col.operation] }}</span>
                                                 <span>{{ col.value }}</span>
                                             </span>
@@ -95,7 +146,10 @@
                                     </div>
                                 </template>
                             </bk-table-column>
-                            <bk-table-column label="拦截时间" prop="interceptTime">
+                            <bk-table-column
+                                :label="$t('quality.拦截时间')"
+                                prop="interceptTime"
+                            >
                                 <template slot-scope="props">
                                     {{ localConvertTime(props.row.interceptTime) }}
                                 </template>
@@ -109,31 +163,49 @@
 </template>
 
 <script>
-    import ECharts from 'vue-echarts/components/ECharts.vue'
-    import 'echarts/lib/chart/line'
-    import 'echarts/lib/chart/bar'
-    import 'echarts/lib/chart/pie'
-    import 'echarts/lib/component/tooltip'
-    import 'echarts/lib/component/title'
-    import 'echarts/lib/component/legend'
+    
+    import { use } from 'echarts/core'
+    import { CanvasRenderer } from 'echarts/renderers'
+    import { LineChart, BarChart, PieChart } from 'echarts/charts'
+    import {
+        GridComponent,
+        TitleComponent,
+        TooltipComponent,
+        LegendComponent
+    } from 'echarts/components'
+    import VChart from 'vue-echarts'
+    
     import {
         rankOptions,
         trendOptions
     } from '@/utils/chart-option'
     import imageEmpty from '@/components/common/imageEmpty'
     import { convertTime } from '@/utils/util'
+    import { RULE_RESOURCE_ACTION, RULE_RESOURCE_TYPE } from '@/utils/permission.js'
+
+    use([
+        CanvasRenderer,
+        LineChart,
+        BarChart,
+        GridComponent,
+        PieChart,
+        TitleComponent,
+        TooltipComponent,
+        LegendComponent
+    ])
 
     export default {
         components: {
-            chart: ECharts,
+            chart: VChart,
             'image-empty': imageEmpty
         },
         data () {
+            const { projectId } = this.$route.params
             return {
                 showContent: false,
                 isEmptyRule: false,
                 totalInterceptRecor: 0,
-                docsUrl: `${DOCS_URL_PREFIX}/x/MYbm`,
+                docsUrl: this.BKCI_DOCS?.GATE_DOC ?? '',
                 pipelineListLabel: [],
                 pipelineListValue: [],
                 trendList: [],
@@ -141,31 +213,37 @@
                 pipelineExcuList: [],
                 interceptRecordList: [],
                 indicatorList: [
-                    { icon: 'rule', name: '规则数', label: 'ruleCount', value: '0' },
-                    { icon: 'experience', name: '指标数', label: 'indicatoCount', value: '0' },
-                    { icon: 'pipeline', name: '生效流水线', label: 'pipelineCount', value: '0' },
-                    { icon: 'minus-circle', name: '红线拦截次数', label: 'interceptCount', value: '0' }
+                    { icon: 'rule', name: this.$t('quality.规则数'), label: 'ruleCount', value: '0' },
+                    { icon: 'experience', name: this.$t('quality.指标数'), label: 'indicatoCount', value: '0' },
+                    { icon: 'pipeline', name: this.$t('quality.生效流水线'), label: 'pipelineCount', value: '0' },
+                    { icon: 'minus-circle', name: this.$t('quality.红线拦截次数'), label: 'interceptCount', value: '0' }
                 ],
                 indexHandlerConf: {
-                    'LT': '<',
-                    'LE': '<=',
-                    'GT': '>',
-                    'GE': '>=',
-                    'EQ': '='
+                    LT: '<',
+                    LE: '<=',
+                    GT: '>',
+                    GE: '>=',
+                    EQ: '='
                 },
                 loading: {
                     isLoading: false,
                     title: ''
                 },
                 emptyInfo: {
-                    title: '创建第一条质量红线规则',
-                    desc: '通过设置不同的指标和阈值，质量红线规则可以控制流水线发布的质量',
+                    title: this.$t('quality.创建第一条质量红线规则'),
+                    desc: this.$t('quality.通过设置不同的指标和阈值，质量红线规则可以控制流水线发布的质量'),
                     btns: [
                         {
                             type: 'primary',
                             size: 'normal',
                             handler: () => this.toRouteLink('createRule'),
-                            text: '创建规则'
+                            text: this.$t('quality.创建规则'),
+                            permissionData: {
+                                projectId: projectId,
+                                resourceType: RULE_RESOURCE_TYPE,
+                                resourceCode: projectId,
+                                action: RULE_RESOURCE_ACTION.CREATE
+                            }
                         }
                     ]
                 }
@@ -200,7 +278,7 @@
                 } = this
 
                 loading.isLoading = true
-                loading.title = '数据加载中，请稍候'
+                loading.title = this.$t('quality.数据加载中，请稍候')
 
                 try {
                     await this.requestOverview()
@@ -239,36 +317,36 @@
 
                     options.tooltip.formatter = (params) => {
                         const colorList = ['#FFE356', '#FFCD56', '#FFB456', '#FF8E56', '#FF5656']
-                        let res = ''
-                        res = '<span style="display:inline-block;margin-right:5px;border-radius:10px;max-width:240px;white-space:normal;">' + params[0].name + '</span>'
-                            + '<br/>'
-                            + '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:'
-                            + colorList[params[0].dataIndex] + '"></span>' + '<span>拦截次数：</span>' + params[0].value
-                        return res
+                        const commonStyle = 'display:inline-block;margin-right:5px;border-radius:10px;'
+                        return `
+                            <span style="${commonStyle} max-width:240px;white-space:normal;">${params[0].name}</span>
+                            <br/>
+                            <span style="${commonStyle} width:9px;height:9px;background-color:${colorList[params[0].dataIndex]}"></span>
+                            <span>${this.$t('quality.拦截数：')}</span>${params[0].value}`
                     }
 
                     options.series[0].itemStyle.normal.color = (params) => {
                         const colorList = ['#FFE356', '#FFCD56', '#FFB456', '#FF8E56', '#FF5656']
                         return colorList[params.dataIndex]
                     }
-
+                    console.log(this.pipelineListValue)
                     options.series[0].data = this.pipelineListValue
                 }
 
                 // 拦截趋势
                 if (type === 'trend') {
-                    options = parse(stringify(trendOptions))
+                    const t = this.$t.bind(this)
+                    options = trendOptions(t)
 
                     options.tooltip.formatter = (params) => {
-                        let res = ''
-                        res = '<span style="display:inline-block;margin-right:5px;border-radius:10px;max-width:240px;white-space:normal;">' + params[0].name + '</span>'
-                            + '<br/>'
-                            + '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color: #3c96ff"></span>'
-                            + '<span>生效流水线执行数：</span>' + params[0].value
-                            + '<br/>'
-                            + '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color: #FF5656"></span>'
-                            + '<span>拦截数：</span>' + params[1].value
-                        return res
+                        const commonStyle = 'display:inline-block;margin-right:5px;border-radius:10px;'
+                        return `<span style="${commonStyle} max-width:240px;white-space:normal;">${params[0].name}</span>
+                                <br/>
+                                <span style="${commonStyle} width:9px;height:9px;background-color: #3c96ff"></span>
+                                <span>${this.$t('quality.生效流水线执行数：')}</span>${params[0].value}
+                                <br/>
+                                <span style="${commonStyle} width:9px;height:9px;background-color: #FF5656"></span>
+                                <span>${this.$t('quality.拦截数：')}</span>${params[1].value}`
                     }
 
                     options.yAxis.axisLabel.formatter = (params) => {
@@ -277,7 +355,7 @@
                         }
                         return parseInt(params)
                     }
-
+                    console.log(this.trendDate, this.trendList, this.pipelineExcuList)
                     options.xAxis.data = this.trendDate
                     options.series[1].data = this.trendList
                     options.series[0].data = this.pipelineExcuList
@@ -366,7 +444,7 @@
 
                     this.interceptRecordList.splice(0, this.interceptRecordList.length)
                     if (res.records) {
-                        res.records.map(item => {
+                        res.records.forEach(item => {
                             this.interceptRecordList.push(item)
                         })
                         this.totalInterceptRecor = res.count
@@ -407,11 +485,11 @@
                 })
             },
             handleRemark (indicators) {
-                let tips = ``
-                indicators.map((item, index) => {
+                let tips = ''
+                indicators.forEach((item, index) => {
                     const isWrap = index === (indicators.length - 1) ? '' : '\n'
                     const actualVal = item.actualValue === undefined ? 'null' : item.actualValue
-                    tips += `${item.indicatorName}=${actualVal}，期望${this.indexHandlerConf[item.operation]}${item.value}${isWrap}`
+                    tips += `${item.indicatorName}=${actualVal}${this.$t('quality.，期望')}${this.indexHandlerConf[item.operation]}${item.value}${isWrap}`
                 })
 
                 return tips

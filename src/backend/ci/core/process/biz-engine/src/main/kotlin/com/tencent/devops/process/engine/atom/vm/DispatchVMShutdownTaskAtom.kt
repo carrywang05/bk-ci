@@ -28,26 +28,36 @@
 package com.tencent.devops.process.engine.atom.vm
 
 import com.tencent.devops.common.api.util.JsonUtil
-import com.tencent.devops.common.event.dispatcher.pipeline.PipelineEventDispatcher
+import com.tencent.devops.common.api.util.timestampmilli
+import com.tencent.devops.common.event.dispatcher.SampleEventDispatcher
 import com.tencent.devops.common.log.utils.BuildLogPrinter
 import com.tencent.devops.common.pipeline.container.VMBuildContainer
+import com.tencent.devops.common.pipeline.enums.BuildRecordTimeStamp
 import com.tencent.devops.common.pipeline.enums.BuildStatus
+import com.tencent.devops.common.pipeline.pojo.time.BuildTimestampType
 import com.tencent.devops.process.engine.atom.AtomResponse
 import com.tencent.devops.process.engine.atom.IAtomTask
 import com.tencent.devops.process.engine.atom.defaultFailAtomResponse
+import com.tencent.devops.process.engine.atom.parser.DispatchTypeBuilder
+import com.tencent.devops.process.engine.control.BuildingHeartBeatUtils
 import com.tencent.devops.process.engine.pojo.PipelineBuildTask
+import com.tencent.devops.process.engine.service.record.ContainerBuildRecordService
 import com.tencent.devops.process.pojo.mq.PipelineAgentShutdownEvent
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.context.annotation.Scope
 import org.springframework.stereotype.Component
+import java.time.LocalDateTime
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 class DispatchVMShutdownTaskAtom @Autowired constructor(
     private val buildLogPrinter: BuildLogPrinter,
-    private val pipelineEventDispatcher: PipelineEventDispatcher
+    private val containerBuildRecordService: ContainerBuildRecordService,
+    private val pipelineEventDispatcher: SampleEventDispatcher,
+    private val buildingHeartBeatUtils: BuildingHeartBeatUtils,
+    private val dispatchTypeBuilder: DispatchTypeBuilder
 ) : IAtomTask<VMBuildContainer> {
     override fun getParamElement(task: PipelineBuildTask): VMBuildContainer {
         return JsonUtil.mapTo(task.taskParams, VMBuildContainer::class.java)
@@ -77,17 +87,29 @@ class DispatchVMShutdownTaskAtom @Autowired constructor(
                 buildId = buildId,
                 vmSeqId = vmSeqId,
                 buildResult = true,
-                routeKeySuffix = param.dispatchType?.routeKeySuffix?.routeKeySuffix,
+                dispatchType = dispatchTypeBuilder.getDispatchType(task, param),
+                routeKeySuffix = dispatchTypeBuilder.getDispatchType(task, param).routeKeySuffix?.routeKeySuffix,
                 executeCount = task.executeCount
+            )
+        )
+        containerBuildRecordService.updateContainerRecord(
+            projectId = task.projectId, pipelineId = task.pipelineId, buildId = task.buildId,
+            containerId = task.containerId, executeCount = task.executeCount ?: 1,
+            containerVar = emptyMap(), buildStatus = null,
+            timestamps = mapOf(
+                BuildTimestampType.JOB_CONTAINER_SHUTDOWN to
+                    BuildRecordTimeStamp(LocalDateTime.now().timestampmilli(), null)
             )
         )
         // 同步Job执行状态
         buildLogPrinter.stopLog(
             buildId = buildId,
-            tag = task.containerHashId ?: "",
-            jobId = task.containerHashId ?: "",
+            containerHashId = task.containerHashId,
             executeCount = task.executeCount
         )
+
+        // issues_5530 stop时关闭心跳
+        buildingHeartBeatUtils.dropHeartbeat(buildId = buildId, vmSeqId = vmSeqId, executeCount = task.executeCount)
 
         logger.info("[$buildId]|SHUTDOWN_VM|stageId=${task.stageId}|container=${task.containerId}|vmSeqId=$vmSeqId")
         return AtomResponse(BuildStatus.SUCCEED)
@@ -118,7 +140,10 @@ class DispatchVMShutdownTaskAtom @Autowired constructor(
                         buildId = task.buildId,
                         vmSeqId = task.containerId,
                         buildResult = true,
-                        routeKeySuffix = param.dispatchType?.routeKeySuffix?.routeKeySuffix,
+                        dispatchType = dispatchTypeBuilder.getDispatchType(task, param),
+                        routeKeySuffix = dispatchTypeBuilder
+                            .getDispatchType(task, param)
+                            .routeKeySuffix?.routeKeySuffix,
                         executeCount = task.executeCount
                     )
                 )

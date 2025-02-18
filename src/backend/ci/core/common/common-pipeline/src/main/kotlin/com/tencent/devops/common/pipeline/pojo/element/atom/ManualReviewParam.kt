@@ -27,26 +27,29 @@
 
 package com.tencent.devops.common.pipeline.pojo.element.atom
 
+import com.tencent.devops.common.api.util.EnvUtils
+import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.api.util.ObjectReplaceEnvVarUtil
-import io.swagger.annotations.ApiModel
-import io.swagger.annotations.ApiModelProperty
+import io.swagger.v3.oas.annotations.media.Schema
 
-@ApiModel("人工审核-自定义参数")
+@Schema(title = "人工审核-自定义参数")
 data class ManualReviewParam(
-    @ApiModelProperty("参数名", required = true)
+    @get:Schema(title = "参数名", required = true)
     var key: String = "",
-    @ApiModelProperty("参数内容", required = true)
-    var value: Any? = "",
-    @ApiModelProperty("参数类型", required = false)
+    @get:Schema(title = "参数内容(Any 类型)", required = true, type = "string")
+    var value: Any? = null,
+    @get:Schema(title = "参数类型", required = false)
     val valueType: ManualReviewParamType = ManualReviewParamType.STRING,
-    @ApiModelProperty("是否必填", required = true)
+    @get:Schema(title = "是否必填", required = true)
     val required: Boolean = false,
-    @ApiModelProperty("参数描述", required = false)
+    @get:Schema(title = "参数描述", required = false)
     val desc: String? = "",
-    @ApiModelProperty("下拉框列表")
-    val options: List<ManualReviewParamPair>? = null,
-    @ApiModelProperty("中文名称", required = false)
-    val chineseName: String? = null
+    @get:Schema(title = "下拉框列表")
+    var options: List<ManualReviewParamPair>? = null,
+    @get:Schema(title = "中文名称", required = false)
+    val chineseName: String? = null,
+    @get:Schema(title = "变量形式的options")
+    val variableOption: String? = null
 ) {
     /**
      *  变量值处理，如果是已有值则直接使用，如果是变量引用则做替换
@@ -54,12 +57,22 @@ data class ManualReviewParam(
     fun parseValueWithType(variables: Map<String, String>) {
         value = if (variables.containsKey(key) && !variables[key].isNullOrBlank()) {
             when (valueType) {
-                ManualReviewParamType.BOOLEAN -> variables[key].toBoolean()
+                ManualReviewParamType.BOOLEAN, ManualReviewParamType.CHECKBOX -> variables[key].toBoolean()
                 // TODO 将入库保存的字符串转回数组对象
                 else -> variables[key]
             }
         } else {
             ObjectReplaceEnvVarUtil.replaceEnvVar(value, variables)
         }
+        options = if (!variableOption.isNullOrBlank()) {
+            EnvUtils.parseEnv(variableOption, variables).let {
+                val optionList = try {
+                    JsonUtil.to<List<Any>>(it)
+                } catch (ignore: Throwable) {
+                    emptyList()
+                }
+                optionList.map { item -> ManualReviewParamPair(item.toString(), item.toString()) }
+            }
+        } else options
     }
 }

@@ -36,11 +36,11 @@ import com.tencent.devops.artifactory.pojo.enums.ArtifactoryType
 import com.tencent.devops.artifactory.pojo.enums.FileChannelTypeEnum
 import com.tencent.devops.artifactory.pojo.enums.FileTypeEnum
 import com.tencent.devops.common.api.pojo.Page
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import javax.servlet.http.HttpServletResponse
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition
 
 @Suppress("ALL")
 interface ArchiveFileService {
@@ -60,7 +60,8 @@ interface ArchiveFileService {
         fileName: String? = null,
         fileType: FileTypeEnum? = null,
         props: Map<String, String?>? = null,
-        fileChannelType: FileChannelTypeEnum
+        fileChannelType: FileChannelTypeEnum,
+        staticFlag: Boolean? = false
     ): String
 
     /**
@@ -74,7 +75,8 @@ interface ArchiveFileService {
         filePath: String? = null,
         fileType: FileTypeEnum? = null,
         props: Map<String, String?>? = null,
-        fileChannelType: FileChannelTypeEnum
+        fileChannelType: FileChannelTypeEnum,
+        staticFlag: Boolean? = false
     ): String
 
     /**
@@ -95,17 +97,17 @@ interface ArchiveFileService {
     /**
      * 下载文件至输出流
      */
-    fun downloadFile(filePath: String, outputStream: OutputStream)
+    fun downloadFile(userId: String, filePath: String, outputStream: OutputStream)
 
     /**
      * 下载文件
      */
-    fun downloadFile(filePath: String, response: HttpServletResponse)
+    fun downloadFile(userId: String, filePath: String, response: HttpServletResponse, logo: Boolean? = false)
 
     /**
      * 下载文件到本地
      */
-    fun downloadFileToLocal(filePath: String, response: HttpServletResponse)
+    fun downloadFileToLocal(userId: String, filePath: String, response: HttpServletResponse)
 
     /**
      * 下载报告文件
@@ -151,6 +153,8 @@ interface ArchiveFileService {
      * [fullUrl]表示是否返回包含域名的全url地址
      */
     fun getFileDownloadUrls(
+        userId: String,
+        projectId: String,
         filePath: String,
         artifactoryType: ArtifactoryType,
         fileChannelType: FileChannelTypeEnum,
@@ -207,6 +211,7 @@ interface ArchiveFileService {
      * 跨项目拷贝文件
      */
     fun acrossProjectCopy(
+        userId: String,
         projectId: String,
         artifactoryType: ArtifactoryType,
         path: String,
@@ -218,6 +223,54 @@ interface ArchiveFileService {
      * 删除文件
      */
     fun deleteFile(
+        userId: String,
         filePath: String
     )
+
+    /**
+     * 查询自定义仓库文件
+     */
+    fun listCustomFiles(
+        userId: String,
+        projectId: String,
+        filePath: String,
+        includeFolder: Boolean?,
+        deep: Boolean?,
+        page: Int?,
+        pageSize: Int?,
+        modifiedTimeDesc: Boolean?
+    ): Page<FileInfo>
+
+    /**
+     * 复制文件
+     */
+    fun copyFile(
+        userId: String,
+        srcProjectId: String,
+        srcArtifactoryType: ArtifactoryType,
+        srcFullPath: String,
+        dstProjectId: String,
+        dstArtifactoryType: ArtifactoryType,
+        dstFullPath: String
+    )
+
+    /**
+     * 根据文件路径获取相关文件内容
+     */
+    fun getFileContent(
+        userId: String,
+        projectId: String,
+        repoName: String,
+        filePath: String
+    ): String
+
+    /**
+     * 获取路径下的文件名称列表
+     */
+    fun listFileNamesByPath(
+        userId: String,
+        projectId: String,
+        repoName: String,
+        filePath: String
+    ): List<String>
 }

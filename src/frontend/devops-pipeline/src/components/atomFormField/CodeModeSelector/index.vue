@@ -1,17 +1,44 @@
 <template>
     <div class="code-mode-check-selector bk-form-row bk-form">
-        <div class="bk-form-inline-item" :class="{ 'is-required': required }">
+        <div
+            class="bk-form-inline-item"
+            :class="{ 'is-required': required }"
+        >
             <label class="bk-label">{{ text }}：</label>
             <div class="bk-form-content">
-                <enum-input :list="gitPullModes" :disabled="noPermission" name="type" :handle-change="handleModeChange" :value="gitPullModeType" />
+                <enum-input
+                    :list="gitPullModes"
+                    :disabled="noPermission"
+                    name="type"
+                    :handle-change="handleModeChange"
+                    :value="gitPullModeType"
+                />
             </div>
         </div>
-        <div class="bk-form-inline-item" :class="{ 'is-required': required }">
+        <div
+            class="bk-form-inline-item"
+            :class="{ 'is-required': required }"
+        >
             <template v-if="gitPullModeType">
                 <label class="bk-label">{{ gitPullModeList[gitPullModeType].label }}：</label>
                 <div class="bk-form-content">
-                    <vuex-input v-if="gitPullModeType === 'COMMIT_ID'" :disabled="noPermission" :placeholder="gitPullModeList[gitPullModeType].placeholder" name="value" :handle-change="handleValueChange" :value="gitPullModeVal"></vuex-input>
-                    <select-input v-else name="value" :value="gitPullModeVal" :disabled="noPermission" type="text" :placeholder="isLoading ? selectorLoadingTips : gitPullModeList[gitPullModeType].placeholder" v-bind="dataInputConfig" />
+                    <vuex-input
+                        v-if="gitPullModeType === 'COMMIT_ID'"
+                        :disabled="noPermission"
+                        :placeholder="gitPullModeList[gitPullModeType].placeholder"
+                        name="value"
+                        :handle-change="handleValueChange"
+                        :value="gitPullModeVal"
+                    ></vuex-input>
+                    <select-input
+                        v-else
+                        name="value"
+                        :value="gitPullModeVal"
+                        :disabled="noPermission"
+                        type="text"
+                        :placeholder="isLoading ? selectorLoadingTips : gitPullModeList[gitPullModeType].placeholder"
+                        v-bind="dataInputConfig"
+                    />
                 </div>
             </template>
         </div>
@@ -71,13 +98,13 @@
                     BRANCH: {
                         label: this.$t('editPage.branch'),
                         placeholder: this.$t('editPage.branchTips'),
-                        url: `/process/api/user/scm/{projectId}/{repositoryHashId}/branches`,
+                        url: '/process/api/user/scm/{projectId}/{repositoryHashId}/branches',
                         default: 'master'
                     },
                     TAG: {
                         label: 'Tag',
                         placeholder: this.$t('editPage.tagTips'),
-                        url: `/process/api/user/scm/{projectId}/{repositoryHashId}/tags`,
+                        url: '/process/api/user/scm/{projectId}/{repositoryHashId}/tags',
                         default: ''
                     },
                     COMMIT_ID: {
@@ -180,9 +207,11 @@
             async freshList (url) {
                 try {
                     const query = this.$route.params
-                    const changeUrl = this.urlParse(url, Object.assign(query, {
-                        repositoryHashId: this.repositoryHashId
-                    }))
+                    const changeUrl = this.urlParse(url, {
+                        bkPoolType: this?.container?.dispatchType?.buildType,
+                        repositoryHashId: this.repositoryHashId,
+                        ...query
+                    })
                     this.isLoading = true
                     const res = await this.$ajax.get(changeUrl)
 

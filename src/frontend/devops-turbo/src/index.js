@@ -20,9 +20,9 @@
 import routes from './router'
 import store from './store'
 import './assets/scss/index.scss'
-
+window.changeFlag = false
 window.Pages = window.Pages || {}
-window.Pages['turbo'] = {
+window.Pages.turbo = {
     title: '编译加速',
     routes,
     store

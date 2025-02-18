@@ -3,6 +3,19 @@
     export default {
         name: 'vuex-textarea',
         mixins: [atomFieldMixin],
+        props: {
+            clickUnfold: {
+                type: Boolean,
+                default: false
+            },
+            hoverUnfold: {
+                type: Boolean,
+                default: false
+            },
+            maxlength: {
+                type: Number
+            }
+        },
         methods: {
             handleInput (e, isBlur = false) {
                 const { value, name } = e.target
@@ -18,9 +31,19 @@
             }
         },
         render (h) {
-            const { value, readOnly, handleInput, name, handleBlur, title, clickUnfold, placeholder } = this
+            const { value, readOnly, handleInput, name, handleBlur, title, clickUnfold, hoverUnfold, placeholder, disabled, maxlength } = this
             return (
-                <textarea placeholder={placeholder} title={title} onBlur={handleBlur} onInput={handleInput} class={['bk-form-textarea pointer-events-auto', clickUnfold ? 'textarea-styles' : '']} name={name} disabled={readOnly} value={value} />
+                <textarea
+                    placeholder={placeholder}
+                    title={title}
+                    onBlur={handleBlur}
+                    onInput={handleInput}
+                    class={['bk-form-textarea pointer-events-auto', clickUnfold ? 'textarea-styles' : '', hoverUnfold && readOnly ? 'hover-textarea-styles' : '']}
+                    name={name}
+                    disabled={readOnly || disabled}
+                    value={value}
+                    {...(maxlength ? { maxlength } : {})}
+                />
             )
         }
     }
@@ -37,6 +60,13 @@
         line-height: 20px !important;
         margin-top: 1px;
         &:focus {
+            height: 100px!important;
+            z-index: 10;
+        }
+    }
+    .hover-textarea-styles {
+        &:hover {
+            // top: 0;
             height: 100px!important;
             z-index: 10;
         }
